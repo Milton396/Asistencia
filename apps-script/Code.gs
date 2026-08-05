@@ -25,7 +25,7 @@ function doGet(e) {
         data = listarEmpleados();
         break;
       case 'config':
-        requireAdmin(e.parameter.token);
+        requireAuth(e.parameter.token);
         data = obtenerConfigPublica();
         break;
       default:
@@ -423,6 +423,34 @@ function configGuardar(body) {
   return { ok: true };
 }
 
+function haversine(lat1, lng1, lat2, lng2) {
+  var R = 6371000;
+  var toRad = function (v) { return (v * Math.PI) / 180; };
+  var dLat = toRad(lat2 - lat1);
+  var dLng = toRad(lng2 - lng1);
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function validarUbicacion(lat, lng) {
+  var cfg = getConfig();
+  if (!cfg.LAT || !cfg.LNG) {
+    throw new Error('La ubicación de referencia no está configurada. Contacte al administrador.');
+  }
+  if (typeof lat !== 'number' || typeof lng !== 'number') {
+    throw new Error('No se pudo obtener su ubicación GPS.');
+  }
+  var distancia = haversine(lat, lng, Number(cfg.LAT), Number(cfg.LNG));
+  var radio = Number(cfg.RADIO_METROS || 5);
+  if (distancia > radio) {
+    throw new Error('Fuera de la ubicación permitida. Distancia: ' + distancia.toFixed(1) + ' m (máx ' + radio + ' m)');
+  }
+  return distancia;
+}
+
 // ==================== FOTOS (Drive) ====================
 
 function getOrCreateFolder(nombre) {
@@ -506,6 +534,7 @@ function calcularEstadoIngreso(horaStr, turnoStr) {
 }
 
 function registrarIngreso(body) {
+  var distancia = validarUbicacion(body.lat, body.lng);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
 
@@ -535,12 +564,13 @@ function registrarIngreso(body) {
 
   return {
     nombre: empleado.nombre, cargo: empleado.cargo, turno: empleado.turno,
-    hora: hora, estado: estado,
+    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10,
     esUltimoTurno: empleado.turno === ultimoTurno
   };
 }
 
 function registrarSalida(body) {
+  var distancia = validarUbicacion(body.lat, body.lng);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
 
@@ -565,7 +595,7 @@ function registrarSalida(body) {
 
   return {
     nombre: empleado.nombre, cargo: empleado.cargo, turno: empleado.turno,
-    hora: hora, estado: estado
+    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10
   };
 }
 

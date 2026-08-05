@@ -29,12 +29,13 @@ Toda la app, incluida la pantalla de registro, requiere iniciar sesión.
 
 La primera vez que el script se ejecuta, crea automáticamente:
 
-- Hoja **CONFIG**: radio permitido (5 m, sin uso actualmente), turnos
-  (`07:00, 08:00, 09:00`) y una clave secreta para firmar las sesiones.
+- Hoja **CONFIG**: radio de ubicación permitido (5 m por defecto — ver
+  nota sobre precisión GPS más abajo), turnos (`07:00, 08:00, 09:00`) y
+  una clave secreta para firmar las sesiones.
 - Hoja **USUARIOS**: una cuenta administradora por defecto —
   usuario `admin`, contraseña **`admin123`** ⚠️ **Cámbiala de inmediato**
-  (inicia sesión con ella y ve a Administración → pestaña **Cuenta**), y
-  crea ahí mismo, en la pestaña **Usuarios**, una cuenta para cada
+  (inicia sesión con ella y usa el botón **Mi cuenta** del encabezado), y
+  crea en Administración → pestaña **Usuarios** una cuenta para cada
   administrador/usuario real.
 
 ## 2. Conectar el frontend
@@ -92,11 +93,15 @@ uno sobre otro para este proyecto.
    **Administrador**) y por cada persona que solo deba usar el kiosco (rol
    **Usuario**). Puedes eliminar la cuenta `admin` de fábrica una vez que
    exista al menos otro administrador.
-3. Pestaña **Cuenta**: cambia tu propia contraseña.
-4. Pestaña **Empleados**: agrega/edita/elimina empleados y su turno
+3. Botón **Mi cuenta** (encabezado, visible con cualquier rol): cambia tu
+   propia contraseña.
+4. Pestaña **Ubicación**: párate en el sitio exacto donde debe registrarse
+   la asistencia y pulsa **Usar mi ubicación actual**, define el radio
+   permitido (ver nota de precisión GPS abajo) y **Guardar ubicación**.
+5. Pestaña **Empleados**: agrega/edita/elimina empleados y su turno
    asignado (también puedes seguir editando la hoja **EMPLEADOS**
    directamente en Sheets; la app siempre lee el estado actual).
-5. Vuelve al registro (**← Volver al registro**) y prueba una entrada y
+6. Vuelve al registro (**← Volver al registro**) y prueba una entrada y
    una salida.
 
 ## Cómo funciona el registro
@@ -105,9 +110,11 @@ uno sobre otro para este proyecto.
   Un rol **Usuario** solo ve esa pantalla; un **Administrador** además ve
   el botón **Administración**.
 - **Entrada**: el empleado ingresa su código → aparece su nombre/turno →
-  toma una foto (IMAGEN1) → se guarda `HORA INGRESO` y `ESTADO`
-  (`A TIEMPO` si la hora es ≤ hora del turno, `ATRASADO` si es posterior).
-- **Salida**: mismo flujo con código + foto (IMAGEN2) → se guarda
+  la app valida que esté dentro del radio configurado de la ubicación de
+  referencia (si no lo está, no deja continuar a la cámara) → toma una
+  foto (IMAGEN1) → se guarda `HORA INGRESO` y `ESTADO` (`A TIEMPO` si la
+  hora es ≤ hora del turno, `ATRASADO` si es posterior).
+- **Salida**: mismo flujo (ubicación + foto IMAGEN2) → se guarda
   `HORA SALIDA` y `ESTADO` cambia a `FIN DE JORNADA`.
 - Las fotos se guardan en una carpeta de Google Drive llamada
   `ASISTENCIA_FOTOS` (se crea sola) y el enlace se guarda en las columnas
@@ -124,9 +131,18 @@ uno sobre otro para este proyecto.
   nombre/código/estado, y exportarse a Excel (.xlsx) con dos hojas:
   Registrados y No registrados (respeta el filtro aplicado).
 
-La pestaña **Ubicación** de administración sigue disponible para guardar
-unas coordenadas de referencia, pero hoy no se usa para validar nada al
-registrar — el registro ya no exige GPS.
+## Precisión GPS y el radio permitido
+
+El registro exige que el empleado esté dentro de un radio (en metros) de
+la ubicación de referencia configurada en Administración → **Ubicación**.
+La API de geolocalización del navegador (`navigator.geolocation`) depende
+del GPS del dispositivo, que en la práctica suele tener una precisión de
+5–30 m al aire libre y bastante peor en interiores. Si configuras un radio
+muy ajustado (por ejemplo 2 m), es probable que alguien parado exactamente
+en el sitio correcto sea rechazado por el margen de error del propio GPS,
+no por estar realmente fuera de lugar — la app muestra la precisión
+reportada por el dispositivo junto al resultado para ayudar a diagnosticar
+esto. Si da problemas en la práctica, prueba con un radio mayor (5–10 m).
 
 ## Estructura del proyecto
 
