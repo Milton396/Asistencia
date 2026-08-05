@@ -1,4 +1,4 @@
-// Panel de administración: empleados (CRUD), turnos, ubicación, informe, usuarios y cuenta propia.
+// Panel de administración: empleados (CRUD), turnos, ubicación, informe y usuarios.
 const Admin = (() => {
   const el = (id) => document.getElementById(id);
   let empleados = [];
@@ -41,8 +41,6 @@ const Admin = (() => {
     el('btn-cancelar-usuario').addEventListener('click', () => el('modal-usuario').classList.add('hidden'));
     el('btn-guardar-usuario').addEventListener('click', guardarUsuario);
     el('tabla-usuarios').addEventListener('click', onClickTablaUsuarios);
-
-    el('btn-guardar-password').addEventListener('click', guardarPassword);
   }
 
   function mostrarVistaAdmin() {
@@ -378,23 +376,6 @@ const Admin = (() => {
       await Api.post('usuarioEliminar', { token: Auth.token(), username });
       Utils.toast('Usuario eliminado', 'ok');
       cargarUsuarios();
-    } catch (err) {
-      Utils.toast(err.message, 'error');
-    }
-  }
-
-  // ---------- CUENTA ----------
-
-  async function guardarPassword() {
-    const p1 = el('input-nueva-password').value;
-    const p2 = el('input-confirmar-password').value;
-    if (p1.length < 4) { Utils.toast('Mínimo 4 caracteres', 'error'); return; }
-    if (p1 !== p2) { Utils.toast('Las contraseñas no coinciden', 'error'); return; }
-    try {
-      await Api.post('passwordCambiar', { token: Auth.token(), nuevaPassword: p1 });
-      el('input-nueva-password').value = '';
-      el('input-confirmar-password').value = '';
-      Utils.toast('Contraseña actualizada', 'ok');
     } catch (err) {
       Utils.toast(err.message, 'error');
     }

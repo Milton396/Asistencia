@@ -12,6 +12,7 @@
   <h1>Registro de Asistencia</h1>
   <div class="botones-header">
     <button id="btn-abrir-admin" class="btn-secondary hidden">Administración</button>
+    <button id="btn-mi-cuenta" class="btn-secondary hidden">Mi cuenta</button>
     <button id="btn-cerrar-sesion" class="btn-secondary hidden">Cerrar sesión</button>
   </div>
 </header>
@@ -70,7 +71,6 @@
     <button class="tab-btn" data-tab="ubicacion">Ubicación</button>
     <button class="tab-btn" data-tab="informe">Informe</button>
     <button class="tab-btn" data-tab="usuarios">Usuarios</button>
-    <button class="tab-btn" data-tab="cuenta">Cuenta</button>
   </nav>
 
   <section id="panel-empleados" class="tab-panel">
@@ -148,15 +148,6 @@
       <tbody></tbody>
     </table>
   </section>
-
-  <section id="panel-cuenta" class="tab-panel hidden">
-    <h3>Cambiar mi contraseña</h3>
-    <label for="input-nueva-password">Nueva contraseña</label>
-    <input id="input-nueva-password" type="password">
-    <label for="input-confirmar-password">Confirmar contraseña</label>
-    <input id="input-confirmar-password" type="password">
-    <button id="btn-guardar-password" class="btn-primary">Guardar contraseña</button>
-  </section>
 </main>
 
 <!-- ===================== MODAL EMPLEADO ===================== -->
@@ -196,6 +187,21 @@
     <div class="botones">
       <button id="btn-cancelar-usuario" class="btn-secondary">Cancelar</button>
       <button id="btn-guardar-usuario" class="btn-primary">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL MI CUENTA ===================== -->
+<div id="modal-cuenta" class="modal hidden">
+  <div class="modal-content">
+    <h2>Mi cuenta</h2>
+    <label for="input-cuenta-nueva-password">Nueva contraseña</label>
+    <input id="input-cuenta-nueva-password" type="password">
+    <label for="input-cuenta-confirmar-password">Confirmar contraseña</label>
+    <input id="input-cuenta-confirmar-password" type="password">
+    <div class="botones">
+      <button id="btn-cancelar-cuenta" class="btn-secondary">Cancelar</button>
+      <button id="btn-guardar-cuenta-password" class="btn-primary">Guardar contraseña</button>
     </div>
   </div>
 </div>
