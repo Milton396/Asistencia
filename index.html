@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de Asistencia</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Registro de Asistencia</h1>
+  <div class="botones-header">
+    <button id="btn-abrir-admin" class="btn-secondary hidden">Administración</button>
+    <button id="btn-cerrar-sesion" class="btn-secondary hidden">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ===================== VISTA LOGIN ===================== -->
+<main id="vista-login" class="container">
+  <div class="paso">
+    <label for="input-login-usuario">Usuario</label>
+    <input id="input-login-usuario" type="text" placeholder="Usuario" autofocus>
+    <label for="input-login-password">Contraseña</label>
+    <input id="input-login-password" type="password" placeholder="Contraseña">
+    <button id="btn-login" class="btn-primary">Ingresar</button>
+  </div>
+</main>
+
+<!-- ===================== VISTA KIOSKO ===================== -->
+<main id="vista-kiosko" class="container hidden">
+  <div class="modo-selector">
+    <button id="btn-modo-ingreso" class="modo-btn active">Entrada</button>
+    <button id="btn-modo-salida" class="modo-btn">Salida</button>
+  </div>
+
+  <div class="paso">
+    <label for="input-codigo">Código de empleado</label>
+    <input id="input-codigo" type="text" inputmode="numeric" placeholder="Ingrese su código y presione Enter" autofocus>
+    <div id="empleado-card" class="empleado-card hidden"></div>
+  </div>
+
+  <div id="paso-camara" class="paso hidden">
+    <video id="video-preview" playsinline muted></video>
+    <div class="botones">
+      <button id="btn-capturar" class="btn-primary">Tomar foto</button>
+    </div>
+  </div>
+
+  <div id="paso-confirmar" class="paso hidden">
+    <img id="foto-preview" alt="Foto capturada">
+    <div class="botones">
+      <button id="btn-reintentar" class="btn-secondary">Reintentar</button>
+      <button id="btn-confirmar" class="btn-primary">Confirmar registro</button>
+    </div>
+  </div>
+
+  <div id="resultado" class="resultado hidden"></div>
+</main>
+
+<!-- ===================== VISTA ADMIN ===================== -->
+<main id="vista-admin" class="container hidden">
+  <div class="admin-toolbar">
+    <button id="btn-volver-kiosko" class="btn-secondary">← Volver al registro</button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="empleados">Empleados</button>
+    <button class="tab-btn hidden" data-tab="turnos">Turnos</button>
+    <button class="tab-btn" data-tab="ubicacion">Ubicación</button>
+    <button class="tab-btn" data-tab="informe">Informe</button>
+    <button class="tab-btn" data-tab="usuarios">Usuarios</button>
+    <button class="tab-btn" data-tab="cuenta">Cuenta</button>
+  </nav>
+
+  <section id="panel-empleados" class="tab-panel">
+    <div class="panel-toolbar">
+      <button id="btn-nuevo-empleado" class="btn-primary">+ Nuevo empleado</button>
+    </div>
+    <table id="tabla-empleados" class="tabla">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th><th>Acciones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="panel-turnos" class="tab-panel hidden">
+    <p>Horarios de turno disponibles (formato 24h). Se asignan a cada empleado en su ficha.</p>
+    <div id="lista-turnos" class="chips"></div>
+    <div class="fila-inline">
+      <input id="input-nuevo-turno" type="time">
+      <button id="btn-agregar-turno" class="btn-secondary">Agregar</button>
+    </div>
+    <button id="btn-guardar-turnos" class="btn-primary">Guardar turnos</button>
+  </section>
+
+  <section id="panel-ubicacion" class="tab-panel hidden">
+    <p>Ubicación de referencia para validar el registro de asistencia (radio en metros).</p>
+    <label for="input-lat">Latitud</label>
+    <input id="input-lat" type="number" step="0.0000001">
+    <label for="input-lng">Longitud</label>
+    <input id="input-lng" type="number" step="0.0000001">
+    <label for="input-radio">Radio permitido (metros)</label>
+    <input id="input-radio" type="number" step="1" min="1">
+    <div class="botones">
+      <button id="btn-usar-ubicacion-actual" class="btn-secondary">Usar mi ubicación actual</button>
+      <button id="btn-guardar-ubicacion" class="btn-primary">Guardar ubicación</button>
+    </div>
+  </section>
+
+  <section id="panel-informe" class="tab-panel hidden">
+    <div class="fila-inline">
+      <label for="input-informe-fecha">Fecha</label>
+      <input id="input-informe-fecha" type="date">
+      <button id="btn-generar-informe" class="btn-primary">Generar informe</button>
+      <button id="btn-exportar-excel" class="btn-secondary">Exportar a Excel</button>
+    </div>
+    <p id="resumen-informe"></p>
+    <div class="fila-inline">
+      <label for="input-informe-buscar">Buscar</label>
+      <input id="input-informe-buscar" type="text" placeholder="Nombre o código">
+      <label for="select-informe-estado">Estado</label>
+      <select id="select-informe-estado">
+        <option value="">Todos</option>
+        <option value="A TIEMPO">A TIEMPO</option>
+        <option value="ATRASADO">ATRASADO</option>
+        <option value="FIN DE JORNADA">FIN DE JORNADA</option>
+      </select>
+    </div>
+    <h3>Registrados</h3>
+    <table id="tabla-registrados" class="tabla">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Turno</th><th>Hora ingreso</th><th>Hora salida</th><th>Estado</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <h3>No registrados</h3>
+    <table id="tabla-no-registrados" class="tabla">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="panel-usuarios" class="tab-panel hidden">
+    <p>Cuentas de acceso a la aplicación. "Administrador" gestiona todo; "Usuario" solo ve la pantalla de registro de entrada/salida.</p>
+    <div class="panel-toolbar">
+      <button id="btn-nuevo-usuario" class="btn-primary">+ Nuevo usuario</button>
+    </div>
+    <table id="tabla-usuarios" class="tabla">
+      <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acciones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="panel-cuenta" class="tab-panel hidden">
+    <h3>Cambiar mi contraseña</h3>
+    <label for="input-nueva-password">Nueva contraseña</label>
+    <input id="input-nueva-password" type="password">
+    <label for="input-confirmar-password">Confirmar contraseña</label>
+    <input id="input-confirmar-password" type="password">
+    <button id="btn-guardar-password" class="btn-primary">Guardar contraseña</button>
+  </section>
+</main>
+
+<!-- ===================== MODAL EMPLEADO ===================== -->
+<div id="modal-empleado" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-empleado-titulo">Nuevo empleado</h2>
+    <label for="input-emp-codigo">Código</label>
+    <input id="input-emp-codigo" type="text">
+    <label for="input-emp-nombre">Nombre</label>
+    <input id="input-emp-nombre" type="text">
+    <label for="input-emp-cargo">Cargo</label>
+    <input id="input-emp-cargo" type="text">
+    <label for="select-emp-turno">Turno</label>
+    <select id="select-emp-turno"></select>
+    <div class="botones">
+      <button id="btn-cancelar-empleado" class="btn-secondary">Cancelar</button>
+      <button id="btn-guardar-empleado" class="btn-primary">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL USUARIO ===================== -->
+<div id="modal-usuario" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-usuario-titulo">Nuevo usuario</h2>
+    <label for="input-usuario-username">Usuario</label>
+    <input id="input-usuario-username" type="text">
+    <label for="input-usuario-nombre">Nombre</label>
+    <input id="input-usuario-nombre" type="text">
+    <label for="select-usuario-rol">Rol</label>
+    <select id="select-usuario-rol">
+      <option value="administrador">Administrador</option>
+      <option value="usuario">Usuario</option>
+    </select>
+    <label for="input-usuario-password">Contraseña</label>
+    <input id="input-usuario-password" type="password" placeholder="Dejar en blanco para no cambiarla">
+    <div class="botones">
+      <button id="btn-cancelar-usuario" class="btn-secondary">Cancelar</button>
+      <button id="btn-guardar-usuario" class="btn-primary">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>
