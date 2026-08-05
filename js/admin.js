@@ -316,6 +316,7 @@ const Admin = (() => {
         <td>
           <button class="btn-mini" data-accion="editar" data-username="${u.username}">Editar</button>
           <button class="btn-mini btn-danger" data-accion="eliminar" data-username="${u.username}">Eliminar</button>
+          ${u.rol === 'usuario' ? `<button class="btn-mini ${u.bloqueado ? 'btn-danger' : ''}" data-accion="bloquear" data-username="${u.username}">${u.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>` : ''}
         </td>
       </tr>`).join('');
   }
@@ -329,6 +330,19 @@ const Admin = (() => {
       abrirModalUsuario(u);
     } else if (btn.dataset.accion === 'eliminar') {
       eliminarUsuario(username);
+    } else if (btn.dataset.accion === 'bloquear') {
+      const u = usuarios.find((x) => x.username === username);
+      toggleBloqueoUsuario(u);
+    }
+  }
+
+  async function toggleBloqueoUsuario(usuario) {
+    try {
+      await Api.post('usuarioBloquear', { token: Auth.token(), username: usuario.username, bloqueado: !usuario.bloqueado });
+      Utils.toast(usuario.bloqueado ? 'Usuario desbloqueado' : 'Usuario bloqueado', 'ok');
+      cargarUsuarios();
+    } catch (err) {
+      Utils.toast(err.message, 'error');
     }
   }
 
