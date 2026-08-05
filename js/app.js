@@ -24,7 +24,7 @@ const Kiosko = (() => {
   async function mostrar() {
     reiniciarFlujo();
     try {
-      config = await Api.get('config', { token: Auth.token() });
+      config = await Api.get('config');
     } catch (err) {
       Utils.toast('No se pudo conectar con el servidor: ' + err.message, 'error', 8000);
     }
@@ -54,7 +54,7 @@ const Kiosko = (() => {
 
   async function refrescarEmpleados() {
     try {
-      empleados = await Api.get('empleados', { token: Auth.token() });
+      empleados = await Api.get('empleados');
     } catch (err) {
       Utils.toast('No se pudo conectar con el servidor: ' + err.message, 'error', 8000);
     }
@@ -132,7 +132,6 @@ const Kiosko = (() => {
     try {
       const accion = modo === 'ingreso' ? 'registrarIngreso' : 'registrarSalida';
       const data = await Api.post(accion, {
-        token: Auth.token(),
         codigo: empleadoActual.codigo,
         imagenBase64: fotoBase64,
         lat: ubicacion.lat,

@@ -9,7 +9,6 @@ const Admin = (() => {
   let ultimoInforme = null;
 
   function init() {
-    el('btn-abrir-admin').addEventListener('click', mostrarVistaAdmin);
     el('btn-volver-kiosko').addEventListener('click', () => {
       el('vista-admin').classList.add('hidden');
       el('vista-kiosko').classList.remove('hidden');
@@ -312,11 +311,9 @@ const Admin = (() => {
       <tr>
         <td>${u.username}</td>
         <td>${u.nombre}</td>
-        <td>${u.rol === 'administrador' ? 'Administrador' : 'Usuario'}</td>
         <td>
           <button class="btn-mini" data-accion="editar" data-username="${u.username}">Editar</button>
           <button class="btn-mini btn-danger" data-accion="eliminar" data-username="${u.username}">Eliminar</button>
-          ${u.rol === 'usuario' ? `<button class="btn-mini ${u.bloqueado ? 'btn-danger' : ''}" data-accion="bloquear" data-username="${u.username}">${u.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>` : ''}
         </td>
       </tr>`).join('');
   }
@@ -330,19 +327,6 @@ const Admin = (() => {
       abrirModalUsuario(u);
     } else if (btn.dataset.accion === 'eliminar') {
       eliminarUsuario(username);
-    } else if (btn.dataset.accion === 'bloquear') {
-      const u = usuarios.find((x) => x.username === username);
-      toggleBloqueoUsuario(u);
-    }
-  }
-
-  async function toggleBloqueoUsuario(usuario) {
-    try {
-      await Api.post('usuarioBloquear', { token: Auth.token(), username: usuario.username, bloqueado: !usuario.bloqueado });
-      Utils.toast(usuario.bloqueado ? 'Usuario desbloqueado' : 'Usuario bloqueado', 'ok');
-      cargarUsuarios();
-    } catch (err) {
-      Utils.toast(err.message, 'error');
     }
   }
 
@@ -351,7 +335,6 @@ const Admin = (() => {
     el('modal-usuario-titulo').textContent = usuario ? 'Editar usuario' : 'Nuevo usuario';
     el('input-usuario-username').value = usuario ? usuario.username : '';
     el('input-usuario-nombre').value = usuario ? usuario.nombre : '';
-    el('select-usuario-rol').value = usuario ? usuario.rol : 'usuario';
     el('input-usuario-password').value = '';
     el('input-usuario-password').placeholder = usuario ? 'Dejar en blanco para no cambiarla' : 'Contraseña';
     el('modal-usuario').classList.remove('hidden');
@@ -362,7 +345,6 @@ const Admin = (() => {
       token: Auth.token(),
       username: el('input-usuario-username').value.trim(),
       nombre: el('input-usuario-nombre').value.trim(),
-      rol: el('select-usuario-rol').value,
       password: el('input-usuario-password').value
     };
     if (editandoUsername) body.usernameOriginal = editandoUsername;
@@ -398,8 +380,8 @@ const Admin = (() => {
   // ---------- NOTIFICACIÓN DE ÚLTIMO TURNO ----------
 
   function notificarUltimoTurno() {
-    if (Auth.rol() !== 'administrador') {
-      Utils.toast('Se completó el ingreso del último turno.', 'info', 6000);
+    if (!Auth.estaLogueado()) {
+      Utils.toast('Se completó el ingreso del último turno. Inicie sesión como administrador para ver el informe.', 'info', 6000);
       return;
     }
     mostrarVistaAdmin();
@@ -407,5 +389,5 @@ const Admin = (() => {
     generarInforme(Utils.hoyISO());
   }
 
-  return { init, notificarUltimoTurno };
+  return { init, mostrarVistaAdmin, notificarUltimoTurno };
 })();

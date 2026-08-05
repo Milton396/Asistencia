@@ -11,25 +11,27 @@
 <header class="app-header">
   <h1>Registro de Asistencia</h1>
   <div class="botones-header">
-    <button id="btn-abrir-admin" class="btn-secondary hidden">Administración</button>
-    <button id="btn-mi-cuenta" class="btn-secondary hidden">Mi cuenta</button>
-    <button id="btn-cerrar-sesion" class="btn-secondary hidden">Cerrar sesión</button>
+    <button id="btn-abrir-admin" class="btn-secondary">Administración</button>
   </div>
 </header>
 
-<!-- ===================== VISTA LOGIN ===================== -->
-<main id="vista-login" class="container">
-  <div class="paso">
-    <label for="input-login-usuario">Usuario</label>
-    <input id="input-login-usuario" type="text" placeholder="Usuario" autofocus>
-    <label for="input-login-password">Contraseña</label>
-    <input id="input-login-password" type="password" placeholder="Contraseña">
-    <button id="btn-login" class="btn-primary">Ingresar</button>
+<!-- ===================== MODAL LOGIN ADMIN ===================== -->
+<div id="modal-admin-login" class="modal hidden">
+  <div class="modal-content">
+    <h2>Acceso administrador</h2>
+    <label for="input-admin-usuario">Usuario</label>
+    <input id="input-admin-usuario" type="text" placeholder="Usuario">
+    <label for="input-admin-password">Contraseña</label>
+    <input id="input-admin-password" type="password" placeholder="Contraseña">
+    <div class="botones">
+      <button id="btn-cerrar-login" class="btn-secondary">Cancelar</button>
+      <button id="btn-admin-login" class="btn-primary">Ingresar</button>
+    </div>
   </div>
-</main>
+</div>
 
 <!-- ===================== VISTA KIOSKO ===================== -->
-<main id="vista-kiosko" class="container hidden">
+<main id="vista-kiosko" class="container">
   <div class="modo-selector">
     <button id="btn-modo-ingreso" class="modo-btn active">Entrada</button>
     <button id="btn-modo-salida" class="modo-btn">Salida</button>
@@ -68,6 +70,10 @@
 <main id="vista-admin" class="container hidden">
   <div class="admin-toolbar">
     <button id="btn-volver-kiosko" class="btn-secondary">← Volver al registro</button>
+    <div class="botones-header">
+      <button id="btn-mi-cuenta" class="btn-secondary">Mi cuenta</button>
+      <button id="btn-cerrar-sesion" class="btn-secondary">Cerrar sesión</button>
+    </div>
   </div>
 
   <nav class="tabs">
@@ -144,12 +150,12 @@
   </section>
 
   <section id="panel-usuarios" class="tab-panel hidden">
-    <p>Cuentas de acceso a la aplicación. "Administrador" gestiona todo; "Usuario" solo ve la pantalla de registro de entrada/salida.</p>
+    <p>Cuentas con acceso al panel de Administración.</p>
     <div class="panel-toolbar">
       <button id="btn-nuevo-usuario" class="btn-primary">+ Nuevo usuario</button>
     </div>
     <table id="tabla-usuarios" class="tabla">
-      <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Usuario</th><th>Nombre</th><th>Acciones</th></tr></thead>
       <tbody></tbody>
     </table>
   </section>
@@ -182,11 +188,6 @@
     <input id="input-usuario-username" type="text">
     <label for="input-usuario-nombre">Nombre</label>
     <input id="input-usuario-nombre" type="text">
-    <label for="select-usuario-rol">Rol</label>
-    <select id="select-usuario-rol">
-      <option value="administrador">Administrador</option>
-      <option value="usuario">Usuario</option>
-    </select>
     <label for="input-usuario-password">Contraseña</label>
     <input id="input-usuario-password" type="password" placeholder="Dejar en blanco para no cambiarla">
     <div class="botones">

@@ -5,12 +5,9 @@ foto, usando tu Google Sheet
 (`17_nIu0LmHeu_S0uJgkPo1gHhqQT0xP3VqGPCiEVY6M0`) como base de datos a través
 de un backend en Google Apps Script.
 
-Acceso con dos roles (ver hoja **USUARIOS**, se crea sola):
-
-- **Administrador**: acceso completo (empleados, ubicación, informe, usuarios, cuenta).
-- **Usuario**: solo ve la pantalla de registro de entrada/salida.
-
-Toda la app, incluida la pantalla de registro, requiere iniciar sesión.
+La pantalla de registro de entrada/salida es **pública** (sin login) — el
+personal marca su asistencia libremente. Solo el botón **Administración**
+pide usuario y contraseña (cuentas en la hoja **USUARIOS**, se crea sola).
 
 ## 1. Desplegar el backend (Apps Script)
 
@@ -34,9 +31,9 @@ La primera vez que el script se ejecuta, crea automáticamente:
   una clave secreta para firmar las sesiones.
 - Hoja **USUARIOS**: una cuenta administradora por defecto —
   usuario `admin`, contraseña **`admin123`** ⚠️ **Cámbiala de inmediato**
-  (inicia sesión con ella y usa el botón **Mi cuenta** del encabezado), y
-  crea en Administración → pestaña **Usuarios** una cuenta para cada
-  administrador/usuario real.
+  (inicia sesión con ella y usa el botón **Mi cuenta** dentro de
+  Administración), y crea en la pestaña **Usuarios** una cuenta para cada
+  persona que vaya a administrar la app.
 
 ## 2. Conectar el frontend
 
@@ -87,14 +84,12 @@ uno sobre otro para este proyecto.
 
 ## 4. Primeros pasos en la app
 
-1. Abre la app → pantalla de login → ingresa con usuario `admin` y
-   contraseña `admin123`.
-2. Pestaña **Usuarios**: crea una cuenta real por cada administrador (rol
-   **Administrador**) y por cada persona que solo deba usar el kiosco (rol
-   **Usuario**). Puedes eliminar la cuenta `admin` de fábrica una vez que
-   exista al menos otro administrador.
-3. Botón **Mi cuenta** (encabezado, visible con cualquier rol): cambia tu
-   propia contraseña.
+1. Abre la app → botón **Administración** (arriba a la derecha) → ingresa
+   con usuario `admin` y contraseña `admin123`.
+2. Pestaña **Usuarios**: crea una cuenta real para cada persona que vaya a
+   administrar la app. Puedes eliminar la cuenta `admin` de fábrica una
+   vez que exista al menos otra cuenta.
+3. Botón **Mi cuenta**: cambia tu propia contraseña.
 4. Pestaña **Ubicación**: párate en el sitio exacto donde debe registrarse
    la asistencia y pulsa **Usar mi ubicación actual**, define el radio
    permitido (ver nota de precisión GPS abajo) y **Guardar ubicación**.
@@ -106,9 +101,8 @@ uno sobre otro para este proyecto.
 
 ## Cómo funciona el registro
 
-- Toda la app requiere iniciar sesión, incluida la pantalla de registro.
-  Un rol **Usuario** solo ve esa pantalla; un **Administrador** además ve
-  el botón **Administración**.
+- La pantalla de registro es pública, sin login — cualquiera puede marcar
+  entrada/salida. Solo **Administración** pide credenciales.
 - **Entrada**: el empleado ingresa su código → aparece su nombre/turno →
   la app valida que esté dentro del radio configurado de la ubicación de
   referencia (si no lo está, no deja continuar a la cámara) → toma una
@@ -157,7 +151,7 @@ asistencia/
 │   ├── camera.js         (captura de foto)
 │   ├── app.js              (flujo de registro / kiosco)
 │   ├── admin.js              (CRUD empleados, turnos, ubicación, informe, usuarios)
-│   └── auth.js                 (login, sesión, enrutamiento por rol)
+│   └── auth.js                 (login y sesión del panel de administración)
 ├── apps-script/Code.gs   (backend a pegar en Apps Script)
 └── README.md
 ```

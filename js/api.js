@@ -18,10 +18,7 @@ const Api = (() => {
     return parse(resp);
   }
 
-  const ERRORES_SESION = [
-    'No autorizado. Inicie sesión.', 'Token inválido', 'Sesión expirada. Vuelva a iniciar sesión.',
-    'Cuenta bloqueada. Contacte al administrador.'
-  ];
+  const ERRORES_SESION = ['No autorizado. Inicie sesión.', 'Token inválido', 'Sesión expirada. Vuelva a iniciar sesión.'];
 
   async function parse(resp) {
     let json;

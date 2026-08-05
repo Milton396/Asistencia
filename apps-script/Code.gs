@@ -21,11 +21,9 @@ function doGet(e) {
     var data;
     switch (action) {
       case 'empleados':
-        requireAuth(e.parameter.token);
         data = listarEmpleados();
         break;
       case 'config':
-        requireAuth(e.parameter.token);
         data = obtenerConfigPublica();
         break;
       default:
@@ -47,11 +45,9 @@ function doPost(e) {
         data = login(body.username, body.password);
         break;
       case 'registrarIngreso':
-        requireAuth(body.token);
         data = registrarIngreso(body);
         break;
       case 'registrarSalida':
-        requireAuth(body.token);
         data = registrarSalida(body);
         break;
       case 'empleadoGuardar':
@@ -88,10 +84,6 @@ function doPost(e) {
       case 'usuarioEliminar':
         requireAdmin(body.token);
         data = usuarioEliminar(body.username);
-        break;
-      case 'usuarioBloquear':
-        requireAdmin(body.token);
-        data = usuarioBloquear(body.username, !!body.bloqueado);
         break;
       default:
         throw new Error('Acción POST no reconocida: ' + action);
@@ -169,10 +161,11 @@ function obtenerConfigPublica() {
   };
 }
 
-// ==================== USUARIOS Y AUTENTICACIÓN ====================
-// Dos roles: "administrador" (acceso total) y "usuario" (solo kiosco de
-// registro). Las credenciales viven en la hoja USUARIOS; el token de sesión
-// codifica usuario+rol+expiración y va firmado con SECRET_KEY (hoja CONFIG).
+// ==================== USUARIOS Y AUTENTICACIÓN (panel Administración) ====================
+// El kiosco de registro es público (sin login). Solo el panel de
+// Administración exige credenciales. Las cuentas viven en la hoja
+// USUARIOS; el token de sesión codifica usuario+expiración y va firmado
+// con SECRET_KEY (hoja CONFIG).
 
 function sha256Hex(texto) {
   var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(texto), Utilities.Charset.UTF_8);
@@ -187,17 +180,11 @@ function ensureUsuariosSheet() {
   var sh = ss.getSheetByName(SHEET_USUARIOS);
   if (!sh) {
     sh = ss.insertSheet(SHEET_USUARIOS);
-    sh.appendRow(['USERNAME', 'PASSWORD_HASH', 'ROL', 'NOMBRE', 'BLOQUEADO']);
+    sh.appendRow(['USERNAME', 'PASSWORD_HASH', 'ROL', 'NOMBRE']);
     sh.getRange(2, 1).setNumberFormat('@');
-    sh.appendRow(['admin', sha256Hex(PASSWORD_DEFECTO), 'administrador', 'Administrador', '']);
-  } else if (!sh.getRange(1, 5).getValue()) {
-    sh.getRange(1, 5).setValue('BLOQUEADO'); // migración: hojas creadas antes de esta columna
+    sh.appendRow(['admin', sha256Hex(PASSWORD_DEFECTO), 'administrador', 'Administrador']);
   }
   return sh;
-}
-
-function esBloqueado(valor) {
-  return valor === 'SI' || valor === true;
 }
 
 function listarUsuarios() {
@@ -206,7 +193,7 @@ function listarUsuarios() {
   var out = [];
   for (var i = 1; i < values.length; i++) {
     if (!values[i][0]) continue;
-    out.push({ username: String(values[i][0]), rol: values[i][2], nombre: values[i][3], bloqueado: esBloqueado(values[i][4]) });
+    out.push({ username: String(values[i][0]), rol: values[i][2], nombre: values[i][3] });
   }
   return out;
 }
@@ -223,30 +210,17 @@ function buscarUsuarioInterno(username) {
     if (String(values[i][0]).trim().toLowerCase() === username) {
       return {
         rowIndex: i + 1, username: String(values[i][0]),
-        passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3],
-        bloqueado: esBloqueado(values[i][4])
+        passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3]
       };
     }
   }
   return null;
 }
 
-function usuarioBloquear(username, bloqueado) {
-  var existente = buscarUsuarioInterno(username);
-  if (!existente) throw new Error('Usuario no encontrado');
-  if (existente.rol === 'administrador') throw new Error('No se puede bloquear a un administrador');
-  var sh = ensureUsuariosSheet();
-  sh.getRange(existente.rowIndex, 5).setValue(bloqueado ? 'SI' : '');
-  return { bloqueado: !!bloqueado };
-}
-
 function usuarioGuardar(body) {
   var username = String(body.username || '').trim();
   if (!username) throw new Error('El usuario es obligatorio');
   if (!body.nombre) throw new Error('El nombre es obligatorio');
-  if (body.rol !== 'administrador' && body.rol !== 'usuario') {
-    throw new Error('Rol inválido');
-  }
   var sh = ensureUsuariosSheet();
   var usernameOriginal = body.usernameOriginal ? String(body.usernameOriginal).trim() : null;
   var existente = usernameOriginal ? buscarUsuarioInterno(usernameOriginal) : null;
@@ -258,25 +232,22 @@ function usuarioGuardar(body) {
   }
 
   if (existente) {
-    if (existente.rol === 'administrador' && body.rol !== 'administrador' && contarAdministradores() <= 1) {
-      throw new Error('Debe existir al menos un administrador');
-    }
     var hash = body.password ? sha256Hex(body.password) : existente.passwordHash;
     sh.getRange(existente.rowIndex, 1).setNumberFormat('@');
-    sh.getRange(existente.rowIndex, 1, 1, 4).setValues([[username, hash, body.rol, body.nombre]]);
+    sh.getRange(existente.rowIndex, 1, 1, 4).setValues([[username, hash, 'administrador', body.nombre]]);
     return { actualizado: true };
   }
   if (!body.password) throw new Error('La contraseña es obligatoria');
   var fila = sh.getLastRow() + 1;
   sh.getRange(fila, 1).setNumberFormat('@');
-  sh.getRange(fila, 1, 1, 4).setValues([[username, sha256Hex(body.password), body.rol, body.nombre]]);
+  sh.getRange(fila, 1, 1, 4).setValues([[username, sha256Hex(body.password), 'administrador', body.nombre]]);
   return { creado: true };
 }
 
 function usuarioEliminar(username) {
   var existente = buscarUsuarioInterno(username);
   if (!existente) throw new Error('Usuario no encontrado');
-  if (existente.rol === 'administrador' && contarAdministradores() <= 1) {
+  if (contarAdministradores() <= 1) {
     throw new Error('Debe existir al menos un administrador');
   }
   var sh = ensureUsuariosSheet();
@@ -289,12 +260,12 @@ function login(username, password) {
   if (!user || sha256Hex(password || '') !== user.passwordHash) {
     throw new Error('Usuario o contraseña incorrectos');
   }
-  if (user.bloqueado) throw new Error('Cuenta bloqueada. Contacte al administrador.');
+  if (user.rol !== 'administrador') throw new Error('Esta cuenta no tiene acceso de administrador.');
   var cfg = getConfig();
   var expiry = Date.now() + TOKEN_DURACION_MS;
   var payload = Utilities.base64EncodeWebSafe(JSON.stringify({ u: user.username, r: user.rol, e: expiry }));
   var firma = sha256Hex(payload + cfg.SECRET_KEY);
-  return { token: payload + '.' + firma, rol: user.rol, nombre: user.nombre, username: user.username };
+  return { token: payload + '.' + firma, nombre: user.nombre, username: user.username };
 }
 
 function requireAuth(token) {
@@ -313,7 +284,6 @@ function requireAuth(token) {
   if (!payload.e || Date.now() > payload.e) throw new Error('Sesión expirada. Vuelva a iniciar sesión.');
   var user = buscarUsuarioInterno(payload.u);
   if (!user) throw new Error('Sesión expirada. Vuelva a iniciar sesión.');
-  if (user.bloqueado) throw new Error('Cuenta bloqueada. Contacte al administrador.');
   return { username: payload.u, rol: payload.r };
 }
 
