@@ -12,6 +12,7 @@ var TIMEZONE = 'America/Guayaquil';
 var FOLDER_NAME = 'ASISTENCIA_FOTOS';
 var TOKEN_DURACION_MS = 8 * 60 * 60 * 1000; // 8 horas
 var PASSWORD_DEFECTO = 'admin123';
+var CACHE_TTL_SEGUNDOS = 120; // 2 minutos
 
 // ==================== ENTRADAS HTTP ====================
 
@@ -45,29 +46,29 @@ function doPost(e) {
         data = login(body.username, body.password);
         break;
       case 'registrarIngreso':
-        data = registrarIngreso(body);
+        data = conBloqueo(function () { return registrarIngreso(body); });
         break;
       case 'registrarSalida':
-        data = registrarSalida(body);
+        data = conBloqueo(function () { return registrarSalida(body); });
         break;
       case 'empleadoGuardar':
         requireAdmin(body.token);
-        data = empleadoGuardar(body);
+        data = conBloqueo(function () { return empleadoGuardar(body); });
         break;
       case 'empleadoEliminar':
         requireAdmin(body.token);
-        data = empleadoEliminar(body.codigo);
+        data = conBloqueo(function () { return empleadoEliminar(body.codigo); });
         break;
       case 'turnosGuardar':
         requireAdmin(body.token);
-        data = turnosGuardar(body.turnos);
+        data = conBloqueo(function () { return turnosGuardar(body.turnos); });
         break;
       case 'configGuardar':
         requireAdmin(body.token);
-        data = configGuardar(body);
+        data = conBloqueo(function () { return configGuardar(body); });
         break;
       case 'passwordCambiar':
-        data = passwordCambiar(body.token, body.nuevaPassword);
+        data = conBloqueo(function () { return passwordCambiar(body.token, body.nuevaPassword); });
         break;
       case 'informe':
         requireAdmin(body.token);
@@ -79,11 +80,11 @@ function doPost(e) {
         break;
       case 'usuarioGuardar':
         requireAdmin(body.token);
-        data = usuarioGuardar(body);
+        data = conBloqueo(function () { return usuarioGuardar(body); });
         break;
       case 'usuarioEliminar':
         requireAdmin(body.token);
-        data = usuarioEliminar(body.username);
+        data = conBloqueo(function () { return usuarioEliminar(body.username); });
         break;
       default:
         throw new Error('Acción POST no reconocida: ' + action);
@@ -96,6 +97,23 @@ function doPost(e) {
 
 function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Serializa las operaciones de lectura-y-escritura (evita que dos peticiones
+// simultáneas pisen la misma fila, p. ej. dos ingresos calculando la misma
+// "última fila" al mismo tiempo).
+function conBloqueo(fn) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('El servidor está ocupado, intente de nuevo en unos segundos.');
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ==================== CONFIG (hoja CONFIG, clave/valor) ====================
@@ -130,25 +148,36 @@ function ensureConfigSheet() {
 }
 
 function getConfig() {
+  var cache = CacheService.getScriptCache();
+  var cacheado = cache.get('config');
+  if (cacheado) return JSON.parse(cacheado);
+
   var sh = ensureConfigSheet();
   var values = sh.getDataRange().getValues();
   var cfg = {};
   for (var i = 1; i < values.length; i++) {
     cfg[values[i][0]] = values[i][1];
   }
+  cache.put('config', JSON.stringify(cfg), CACHE_TTL_SEGUNDOS);
   return cfg;
 }
 
 function setConfigValue(clave, valor) {
   var sh = ensureConfigSheet();
   var values = sh.getDataRange().getValues();
+  var fila = -1;
   for (var i = 1; i < values.length; i++) {
     if (values[i][0] === clave) {
-      sh.getRange(i + 1, 2).setValue(valor);
-      return;
+      fila = i + 1;
+      break;
     }
   }
-  sh.appendRow([clave, valor]);
+  if (fila > 0) {
+    sh.getRange(fila, 2).setValue(valor);
+  } else {
+    sh.appendRow([clave, valor]);
+  }
+  CacheService.getScriptCache().remove('config');
 }
 
 function obtenerConfigPublica() {
@@ -187,15 +216,36 @@ function ensureUsuariosSheet() {
   return sh;
 }
 
-function listarUsuarios() {
+// Lee la hoja USUARIOS una vez y la cachea; buscarUsuarioInterno() y
+// listarUsuarios() reutilizan este mismo resultado. Se invalida en cada
+// escritura (usuarioGuardar/usuarioEliminar/passwordCambiar).
+function obtenerFilasUsuarios() {
+  var cache = CacheService.getScriptCache();
+  var cacheado = cache.get('usuarios');
+  if (cacheado) return JSON.parse(cacheado);
+
   var sh = ensureUsuariosSheet();
   var values = sh.getDataRange().getValues();
   var out = [];
   for (var i = 1; i < values.length; i++) {
     if (!values[i][0]) continue;
-    out.push({ username: String(values[i][0]), rol: values[i][2], nombre: values[i][3] });
+    out.push({
+      rowIndex: i + 1, username: String(values[i][0]),
+      passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3]
+    });
   }
+  cache.put('usuarios', JSON.stringify(out), CACHE_TTL_SEGUNDOS);
   return out;
+}
+
+function invalidarCacheUsuarios() {
+  CacheService.getScriptCache().remove('usuarios');
+}
+
+function listarUsuarios() {
+  return obtenerFilasUsuarios().map(function (u) {
+    return { username: u.username, rol: u.rol, nombre: u.nombre };
+  });
 }
 
 function contarAdministradores() {
@@ -203,16 +253,10 @@ function contarAdministradores() {
 }
 
 function buscarUsuarioInterno(username) {
-  var sh = ensureUsuariosSheet();
-  var values = sh.getDataRange().getValues();
   username = String(username || '').trim().toLowerCase();
-  for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim().toLowerCase() === username) {
-      return {
-        rowIndex: i + 1, username: String(values[i][0]),
-        passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3]
-      };
-    }
+  var filas = obtenerFilasUsuarios();
+  for (var i = 0; i < filas.length; i++) {
+    if (filas[i].username.trim().toLowerCase() === username) return filas[i];
   }
   return null;
 }
@@ -235,12 +279,14 @@ function usuarioGuardar(body) {
     var hash = body.password ? sha256Hex(body.password) : existente.passwordHash;
     sh.getRange(existente.rowIndex, 1).setNumberFormat('@');
     sh.getRange(existente.rowIndex, 1, 1, 4).setValues([[username, hash, 'administrador', body.nombre]]);
+    invalidarCacheUsuarios();
     return { actualizado: true };
   }
   if (!body.password) throw new Error('La contraseña es obligatoria');
   var fila = sh.getLastRow() + 1;
   sh.getRange(fila, 1).setNumberFormat('@');
   sh.getRange(fila, 1, 1, 4).setValues([[username, sha256Hex(body.password), 'administrador', body.nombre]]);
+  invalidarCacheUsuarios();
   return { creado: true };
 }
 
@@ -252,6 +298,7 @@ function usuarioEliminar(username) {
   }
   var sh = ensureUsuariosSheet();
   sh.deleteRow(existente.rowIndex);
+  invalidarCacheUsuarios();
   return { eliminado: true };
 }
 
@@ -302,12 +349,17 @@ function passwordCambiar(token, nuevaPassword) {
   if (!user) throw new Error('Usuario no encontrado');
   var sh = ensureUsuariosSheet();
   sh.getRange(user.rowIndex, 2).setValue(sha256Hex(nuevaPassword));
+  invalidarCacheUsuarios();
   return { ok: true };
 }
 
 // ==================== EMPLEADOS ====================
 
 function listarEmpleados() {
+  var cache = CacheService.getScriptCache();
+  var cacheado = cache.get('empleados');
+  if (cacheado) return JSON.parse(cacheado);
+
   var sh = getSheet(SHEET_EMPLEADOS);
   var values = sh.getDataRange().getValues();
   var out = [];
@@ -320,6 +372,7 @@ function listarEmpleados() {
       turno: formatoHora(values[i][3], 'HH:mm')
     });
   }
+  cache.put('empleados', JSON.stringify(out), CACHE_TTL_SEGUNDOS);
   return out;
 }
 
@@ -339,19 +392,25 @@ function empleadoGuardar(body) {
 
   var sh = getSheet(SHEET_EMPLEADOS);
   var values = sh.getDataRange().getValues();
+  var resultado;
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]) === codigo) {
       sh.getRange(i + 1, 1).setNumberFormat('@');
       sh.getRange(i + 1, 4).setNumberFormat('@');
       sh.getRange(i + 1, 1, 1, 4).setValues([[codigo, body.nombre, body.cargo || '', body.turno]]);
-      return { actualizado: true };
+      resultado = { actualizado: true };
+      break;
     }
   }
-  var fila = sh.getLastRow() + 1;
-  sh.getRange(fila, 1).setNumberFormat('@');
-  sh.getRange(fila, 4).setNumberFormat('@');
-  sh.getRange(fila, 1, 1, 4).setValues([[codigo, body.nombre, body.cargo || '', body.turno]]);
-  return { creado: true };
+  if (!resultado) {
+    var fila = sh.getLastRow() + 1;
+    sh.getRange(fila, 1).setNumberFormat('@');
+    sh.getRange(fila, 4).setNumberFormat('@');
+    sh.getRange(fila, 1, 1, 4).setValues([[codigo, body.nombre, body.cargo || '', body.turno]]);
+    resultado = { creado: true };
+  }
+  CacheService.getScriptCache().remove('empleados');
+  return resultado;
 }
 
 function empleadoEliminar(codigo) {
@@ -361,6 +420,7 @@ function empleadoEliminar(codigo) {
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]) === codigo) {
       sh.deleteRow(i + 1);
+      CacheService.getScriptCache().remove('empleados');
       return { eliminado: true };
     }
   }

@@ -125,6 +125,24 @@ uno sobre otro para este proyecto.
   nombre/código/estado, y exportarse a Excel (.xlsx) con dos hojas:
   Registrados y No registrados (respeta el filtro aplicado).
 
+## Concurrencia y rendimiento
+
+- **Bloqueo de escrituras (`LockService`)**: las operaciones que leen y
+  luego escriben una fila (registrar entrada/salida, guardar/eliminar
+  empleados o usuarios, cambiar contraseña, guardar turnos/ubicación) se
+  serializan con un lock de script. Sin esto, dos peticiones casi
+  simultáneas podían calcular la misma "última fila" y una pisaba el
+  registro de la otra. Si el servidor está muy ocupado (cola de más de
+  10 s), la petición falla con un mensaje para reintentar en vez de
+  arriesgar datos corruptos.
+- **Caché de lecturas (`CacheService`)**: `empleados`, `config` (turnos,
+  ubicación, radio) y la lista de `usuarios` se cachean por 2 minutos en
+  vez de releer la hoja completa en cada petición — esto incluye
+  `requireAuth`, que antes releía USUARIOS y CONFIG en cada acción del
+  panel de administración. La caché se invalida de inmediato en cuanto
+  se guarda un cambio, así que nunca se sirven datos obsoletos por más
+  de una escritura de diferencia.
+
 ## Precisión GPS y el radio permitido
 
 El registro exige que el empleado esté dentro de un radio (en metros) de
