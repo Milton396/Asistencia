@@ -13,6 +13,7 @@ var FOLDER_NAME = 'ASISTENCIA_FOTOS';
 var TOKEN_DURACION_MS = 8 * 60 * 60 * 1000; // 8 horas
 var PASSWORD_DEFECTO = 'admin123';
 var CACHE_TTL_SEGUNDOS = 120; // 2 minutos
+var NOMBRE_EMPRESA = 'Bodega Arupos Telconet';
 
 // ==================== ENTRADAS HTTP ====================
 
@@ -623,20 +624,75 @@ function calcularHorasExtras(fecha, turnoStr, horaIngresoStr, horaSalidaStr) {
   return formatoHorasMinutos(redondearAMediaHora(totalSegundos));
 }
 
+// Arma el HTML (para clientes que lo soportan) y el texto plano de respaldo
+// del correo de confirmación de horas extra. Arial/Helvetica a propósito:
+// Gmail/Outlook ignoran fuentes personalizadas en el HTML de un correo.
+function construirCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horasExtras) {
+  var filas = [
+    ['Código', empleado.codigo],
+    ['Cargo', empleado.cargo || '-'],
+    ['Turno asignado', empleado.turno],
+    ['Hora de ingreso', horaIngreso],
+    ['Hora de salida', horaSalida]
+  ].map(function (f) {
+    return '<tr>' +
+      '<td style="padding:9px 4px;border-bottom:1px solid #e6e9ee;color:#5f6368;width:44%;">' + f[0] + '</td>' +
+      '<td style="padding:9px 4px;border-bottom:1px solid #e6e9ee;color:#202124;font-weight:600;text-align:right;">' + f[1] + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var filaDestacada = '<tr>' +
+    '<td style="padding-top:14px;color:#1f6b3a;font-weight:700;">Horas extra generadas</td>' +
+    '<td style="padding-top:14px;color:#1f6b3a;font-weight:800;font-size:16px;text-align:right;">' + horasExtras + '</td>' +
+    '</tr>';
+
+  var html =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;padding:28px 20px;">' +
+      '<tr><td align="center">' +
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">' +
+          '<tr><td style="background:#103a70;padding:22px 28px;">' +
+            '<div style="color:#ffffff;font-size:15px;font-weight:700;">' + NOMBRE_EMPRESA + '</div>' +
+            '<div style="color:#9fc0ea;font-size:12px;margin-top:3px;">Registro de Asistencia</div>' +
+          '</td></tr>' +
+          '<tr><td style="padding:28px;color:#202124;font-size:14px;line-height:1.6;">' +
+            '<p style="margin:0 0 14px;">Hola <strong>' + empleado.nombre + '</strong>,</p>' +
+            '<p style="margin:0 0 14px;">Se registró tu salida del <strong>' + fecha + '</strong> con el siguiente detalle:</p>' +
+            '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:6px 0 20px;font-size:13.5px;">' +
+              filas + filaDestacada +
+            '</table>' +
+            '<p style="margin:0;color:#5f6368;font-size:12.5px;">Este es un mensaje automático, por favor no responder.</p>' +
+          '</td></tr>' +
+          '<tr><td style="padding:16px 28px 24px;font-size:11.5px;color:#8a93a2;border-top:1px solid #eef1f5;">' + NOMBRE_EMPRESA + ' · Registro de Asistencia</td></tr>' +
+        '</table>' +
+      '</td></tr>' +
+    '</table>';
+
+  var texto = 'Hola ' + empleado.nombre + ',\n\n' +
+    'Se registró tu salida del ' + fecha + ' con el siguiente detalle:\n\n' +
+    'Código: ' + empleado.codigo + '\n' +
+    'Cargo: ' + (empleado.cargo || '-') + '\n' +
+    'Turno asignado: ' + empleado.turno + '\n' +
+    'Hora de ingreso: ' + horaIngreso + '\n' +
+    'Hora de salida: ' + horaSalida + '\n' +
+    'Horas extra generadas: ' + horasExtras + '\n\n' +
+    'Este es un mensaje automático, por favor no responder.';
+
+  return { html: html, texto: texto };
+}
+
 // Envía la confirmación de horas extra por correo. No debe interrumpir el
 // registro de salida si falla (dirección inválida, cuota de MailApp, etc.).
 function enviarCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horasExtras) {
   if (!empleado.correo) return;
   try {
-    var asunto = 'Confirmación de horas extra - ' + fecha;
-    var cuerpo = 'Hola ' + empleado.nombre + ',\n\n' +
-      'Se registró tu salida del ' + fecha + ' con el siguiente detalle:\n\n' +
-      'Turno asignado: ' + empleado.turno + '\n' +
-      'Hora de ingreso: ' + horaIngreso + '\n' +
-      'Hora de salida: ' + horaSalida + '\n' +
-      'Horas extra generadas: ' + horasExtras + '\n\n' +
-      'Este es un mensaje automático, por favor no responder.';
-    MailApp.sendEmail(empleado.correo, asunto, cuerpo);
+    var asunto = NOMBRE_EMPRESA + ' — Confirmación de horas extra (' + fecha + ')';
+    var correo = construirCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horasExtras);
+    MailApp.sendEmail({
+      to: empleado.correo,
+      subject: asunto,
+      body: correo.texto,
+      htmlBody: correo.html
+    });
   } catch (err) {
     // Silencioso: el registro de salida ya se guardó correctamente.
   }
