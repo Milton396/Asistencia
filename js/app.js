@@ -3,7 +3,6 @@ const Kiosko = (() => {
   const MARGEN_PRECISION_MAX = 50; // metros; tope al margen de error GPS que se acepta
 
   let modo = 'ingreso';
-  let config = null;
   let empleados = [];
   let empleadoActual = null;
   let ubicacion = null;
@@ -25,11 +24,6 @@ const Kiosko = (() => {
 
   async function mostrar() {
     reiniciarFlujo();
-    try {
-      config = await Api.get('config');
-    } catch (err) {
-      Utils.toast('No se pudo conectar con el servidor: ' + err.message, 'error', 8000);
-    }
     await refrescarEmpleados();
   }
 
@@ -88,6 +82,10 @@ const Kiosko = (() => {
     estadoEl.className = '';
     el('paso-camara').classList.add('hidden');
     try {
+      // Se consulta fresca en cada intento (no una sola vez al cargar la
+      // página), para que un cambio de radio/ubicación desde Administración
+      // se aplique de inmediato sin tener que recargar el kiosco.
+      const config = await Api.get('config');
       if (!config || !config.lat || !config.lng) {
         throw new Error('La ubicación de referencia no está configurada. Contacte al administrador.');
       }
