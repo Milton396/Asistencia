@@ -77,6 +77,7 @@ const Admin = (() => {
         <td>${e.nombre}</td>
         <td>${e.cargo || ''}</td>
         <td>${Utils.formatoHora(e.turno)}</td>
+        <td>${e.correo || ''}</td>
         <td>
           <button class="btn-mini" data-accion="editar" data-codigo="${e.codigo}">Editar</button>
           <button class="btn-mini btn-danger" data-accion="eliminar" data-codigo="${e.codigo}">Eliminar</button>
@@ -110,6 +111,7 @@ const Admin = (() => {
     el('input-emp-codigo').disabled = !!emp;
     el('input-emp-nombre').value = emp ? emp.nombre : '';
     el('input-emp-cargo').value = emp ? emp.cargo : '';
+    el('input-emp-correo').value = emp ? (emp.correo || '') : '';
     poblarSelectTurnos();
     if (emp) el('select-emp-turno').value = Utils.formatoHora(emp.turno);
     el('modal-empleado').classList.remove('hidden');
@@ -121,6 +123,7 @@ const Admin = (() => {
       codigo: editandoCodigo || el('input-emp-codigo').value.trim(),
       nombre: el('input-emp-nombre').value.trim(),
       cargo: el('input-emp-cargo').value.trim(),
+      correo: el('input-emp-correo').value.trim(),
       turno: el('select-emp-turno').value
     };
     if (!body.codigo || !body.nombre) {

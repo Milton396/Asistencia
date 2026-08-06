@@ -361,6 +361,9 @@ function listarEmpleados() {
   if (cacheado) return JSON.parse(cacheado);
 
   var sh = getSheet(SHEET_EMPLEADOS);
+  if (!sh.getRange(1, 5).getValue()) {
+    sh.getRange(1, 5).setValue('CORREO'); // migración: hojas creadas antes de esta columna
+  }
   var values = sh.getDataRange().getValues();
   var out = [];
   for (var i = 1; i < values.length; i++) {
@@ -369,7 +372,8 @@ function listarEmpleados() {
       codigo: String(values[i][0]),
       nombre: values[i][1],
       cargo: values[i][2],
-      turno: formatoHora(values[i][3], 'HH:mm')
+      turno: formatoHora(values[i][3], 'HH:mm'),
+      correo: values[i][4] || ''
     });
   }
   cache.put('empleados', JSON.stringify(out), CACHE_TTL_SEGUNDOS);
@@ -397,7 +401,7 @@ function empleadoGuardar(body) {
     if (String(values[i][0]) === codigo) {
       sh.getRange(i + 1, 1).setNumberFormat('@');
       sh.getRange(i + 1, 4).setNumberFormat('@');
-      sh.getRange(i + 1, 1, 1, 4).setValues([[codigo, body.nombre, body.cargo || '', body.turno]]);
+      sh.getRange(i + 1, 1, 1, 5).setValues([[codigo, body.nombre, body.cargo || '', body.turno, body.correo || '']]);
       resultado = { actualizado: true };
       break;
     }
@@ -406,7 +410,7 @@ function empleadoGuardar(body) {
     var fila = sh.getLastRow() + 1;
     sh.getRange(fila, 1).setNumberFormat('@');
     sh.getRange(fila, 4).setNumberFormat('@');
-    sh.getRange(fila, 1, 1, 4).setValues([[codigo, body.nombre, body.cargo || '', body.turno]]);
+    sh.getRange(fila, 1, 1, 5).setValues([[codigo, body.nombre, body.cargo || '', body.turno, body.correo || '']]);
     resultado = { creado: true };
   }
   CacheService.getScriptCache().remove('empleados');
@@ -619,6 +623,25 @@ function calcularHorasExtras(fecha, turnoStr, horaIngresoStr, horaSalidaStr) {
   return formatoHorasMinutos(redondearAMediaHora(totalSegundos));
 }
 
+// Envía la confirmación de horas extra por correo. No debe interrumpir el
+// registro de salida si falla (dirección inválida, cuota de MailApp, etc.).
+function enviarCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horasExtras) {
+  if (!empleado.correo) return;
+  try {
+    var asunto = 'Confirmación de horas extra - ' + fecha;
+    var cuerpo = 'Hola ' + empleado.nombre + ',\n\n' +
+      'Se registró tu salida del ' + fecha + ' con el siguiente detalle:\n\n' +
+      'Turno asignado: ' + empleado.turno + '\n' +
+      'Hora de ingreso: ' + horaIngreso + '\n' +
+      'Hora de salida: ' + horaSalida + '\n' +
+      'Horas extra generadas: ' + horasExtras + '\n\n' +
+      'Este es un mensaje automático, por favor no responder.';
+    MailApp.sendEmail(empleado.correo, asunto, cuerpo);
+  } catch (err) {
+    // Silencioso: el registro de salida ya se guardó correctamente.
+  }
+}
+
 function registrarIngreso(body) {
   var distancia = validarUbicacion(body.lat, body.lng);
   var empleado = buscarEmpleado(body.codigo);
@@ -679,9 +702,15 @@ function registrarSalida(body) {
   sh.getRange(existente.rowIndex, 9, 1, 1).setValue(urlFoto);     // IMAGEN2
   sh.getRange(existente.rowIndex, 11, 1, 1).setValue(estado);     // ESTADO
 
+  var horasExtras = calcularHorasExtras(fecha, empleado.turno, existente.horaIngreso, hora);
+  if (horasExtras && horasExtras !== '0:00') {
+    enviarCorreoHorasExtras(empleado, fecha, existente.horaIngreso, hora, horasExtras);
+  }
+
   return {
     nombre: empleado.nombre, cargo: empleado.cargo, turno: empleado.turno,
-    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10
+    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10,
+    horasExtras: horasExtras
   };
 }
 
