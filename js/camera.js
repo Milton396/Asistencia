@@ -2,12 +2,32 @@
 const Camera = (() => {
   let stream = null;
 
+  // Mensajes propios en vez del err.message crudo del navegador (a menudo
+  // vacío o en inglés según el dispositivo).
+  function errorCamaraLegible(err) {
+    const mensajes = {
+      NotAllowedError: 'Permiso de cámara denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Cámara) y vuelve a intentar.',
+      PermissionDeniedError: 'Permiso de cámara denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Cámara) y vuelve a intentar.',
+      NotFoundError: 'No se encontró ninguna cámara en este dispositivo.',
+      NotReadableError: 'La cámara está siendo usada por otra aplicación. Ciérrala e intenta de nuevo.',
+      OverconstrainedError: 'La cámara de este dispositivo no cumple los requisitos solicitados.'
+    };
+    return new Error(mensajes[err.name] || ('No se pudo acceder a la cámara: ' + (err.message || err.name || 'error desconocido')));
+  }
+
   async function iniciar(videoEl) {
     detener();
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-      audio: false
-    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Este dispositivo o navegador no soporta acceso a la cámara.');
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
+      });
+    } catch (err) {
+      throw errorCamaraLegible(err);
+    }
     videoEl.srcObject = stream;
     await videoEl.play();
   }

@@ -175,6 +175,24 @@ no por estar realmente fuera de lugar — la app muestra la precisión
 reportada por el dispositivo junto al resultado para ayudar a diagnosticar
 esto. Si da problemas en la práctica, prueba con un radio mayor (5–10 m).
 
+### "Permiso denegado" o dispositivos que no ubican bien
+
+- **"Permiso denegado"** (ubicación o cámara): el navegador del equipo ya
+  quedó marcado como "bloqueado" para ese permiso, normalmente porque
+  alguien lo rechazó una vez. Se soluciona desde el propio dispositivo, no
+  desde la app: ícono de candado junto a la dirección web → Permisos →
+  activar Ubicación/Cámara → recargar la página. La app ahora muestra este
+  mensaje en español con la instrucción incluida, en vez del texto crudo
+  (y a veces en inglés) que devuelve el navegador.
+- **Tablets o celulares que no reconocen el rango**: muchos son solo
+  Wi-Fi, sin chip GPS real, y ubican por red con mucho menos precisión (a
+  veces cientos de metros). La app ahora reintenta automáticamente con
+  ubicación por red si la de alta precisión falla o se agota el tiempo,
+  pero si el dispositivo no tiene forma de ubicarse con precisión
+  razonable, seguirá quedando fuera del radio configurado — en esos casos
+  conviene ampliar el radio (ver arriba) o registrar la asistencia desde
+  un equipo con GPS real.
+
 ## Estructura del proyecto
 
 ```

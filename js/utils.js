@@ -11,10 +11,23 @@ const Utils = (() => {
     return R * c;
   }
 
-  function getUbicacionActual() {
+  // Mensajes propios en vez del err.message crudo del navegador, que varía
+  // de texto (y hasta de idioma) según el dispositivo y confunde al usuario.
+  function errorUbicacionLegible(err) {
+    const mensajes = {
+      1: 'Permiso de ubicación denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Ubicación) y vuelve a intentar.',
+      2: 'No se pudo determinar la ubicación de este dispositivo (sin señal de GPS/red). Prueba cerca de una ventana o al aire libre.',
+      3: 'Se agotó el tiempo esperando la ubicación. Verifica que el GPS esté activado e intenta de nuevo.'
+    };
+    const e = new Error(mensajes[err.code] || ('No se pudo obtener la ubicación: ' + err.message));
+    e.code = err.code;
+    return e;
+  }
+
+  function intentarUbicacion(altaPrecision) {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Este navegador no soporta geolocalización'));
+        reject(new Error('Este dispositivo o navegador no soporta ubicación GPS.'));
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -23,10 +36,24 @@ const Utils = (() => {
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy
         }),
-        (err) => reject(new Error('No se pudo obtener la ubicación: ' + err.message)),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        (err) => reject(errorUbicacionLegible(err)),
+        { enableHighAccuracy: altaPrecision, timeout: altaPrecision ? 8000 : 15000, maximumAge: 0 }
       );
     });
+  }
+
+  // Muchas tablets/celulares sin GPS real fallan o se agotan en alta
+  // precisión; reintenta una vez con ubicación por red (menos exacta, pero
+  // funciona en más dispositivos) antes de rendirse.
+  async function getUbicacionActual() {
+    try {
+      return await intentarUbicacion(true);
+    } catch (err) {
+      if (err.code === 2 || err.code === 3) {
+        return await intentarUbicacion(false);
+      }
+      throw err;
+    }
   }
 
   function hoyISO() {
