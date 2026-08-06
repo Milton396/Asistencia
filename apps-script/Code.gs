@@ -14,6 +14,7 @@ var TOKEN_DURACION_MS = 8 * 60 * 60 * 1000; // 8 horas
 var PASSWORD_DEFECTO = 'admin123';
 var CACHE_TTL_SEGUNDOS = 120; // 2 minutos
 var NOMBRE_EMPRESA = 'Bodega Arupos Telconet';
+var CORREO_COPIA_HORAS_EXTRA = 'mguanulema@telconet.ec';
 
 // ==================== ENTRADAS HTTP ====================
 
@@ -689,6 +690,7 @@ function enviarCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horas
     var correo = construirCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horasExtras);
     MailApp.sendEmail({
       to: empleado.correo,
+      cc: CORREO_COPIA_HORAS_EXTRA,
       subject: asunto,
       body: correo.texto,
       htmlBody: correo.html

@@ -140,7 +140,9 @@ uno sobre otro para este proyecto.
   configuración adicional, pero sí que autorices el permiso de correo la
   próxima vez que despliegues (ver siguiente sección). Si el envío falla
   por cualquier motivo, el registro de salida igual se guarda con
-  normalidad.
+  normalidad. Cada envío va con copia (CC) fija a
+  `mguanulema@telconet.ec` (constante `CORREO_COPIA_HORAS_EXTRA` en
+  `Code.gs`, editable ahí si cambia el destinatario).
 
 ## Concurrencia y rendimiento
 
