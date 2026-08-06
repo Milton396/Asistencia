@@ -124,6 +124,13 @@ uno sobre otro para este proyecto.
   Administración → pestaña **Informe**, eligiendo la fecha, filtrando por
   nombre/código/estado, y exportarse a Excel (.xlsx) con dos hojas:
   Registrados y No registrados (respeta el filtro aplicado).
+- La tabla de **Registrados** incluye **Horas extras** (formato `H:MM`).
+  Entre semana empieza a contar 9h01s después del inicio del turno
+  asignado (ej. turno 07:00 → desde las 16:00:01); sábado y domingo
+  cuenta toda la jornada trabajada. El excedente se redondea al medio
+  hora más cercano (<30 min → 0, 30-44 min → 30 min, 45-59 min → hora
+  completa, repitiéndose por cada hora). Si aún no hay hora de salida
+  registrada, se muestra "-".
 
 ## Concurrencia y rendimiento
 

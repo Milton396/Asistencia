@@ -267,7 +267,7 @@ const Admin = (() => {
       `Fecha ${ultimoInforme.fecha} — Registrados: ${ultimoInforme.registrados.length} · No registrados: ${ultimoInforme.noRegistrados.length}`;
 
     el('tabla-registrados').querySelector('tbody').innerHTML = registrados.map((r) => `
-      <tr><td>${r.codigo}</td><td>${r.nombre}</td><td>${Utils.formatoHora(r.turno)}</td><td>${r.horaIngreso}</td><td>${r.horaSalida || '-'}</td><td>${r.estado}</td></tr>
+      <tr><td>${r.codigo}</td><td>${r.nombre}</td><td>${Utils.formatoHora(r.turno)}</td><td>${r.horaIngreso}</td><td>${r.horaSalida || '-'}</td><td>${r.estado}</td><td>${r.horasExtras || '-'}</td></tr>
     `).join('');
 
     el('tabla-no-registrados').querySelector('tbody').innerHTML = noRegistrados.map((r) => `
@@ -284,7 +284,8 @@ const Admin = (() => {
     const wb = XLSX.utils.book_new();
     const hojaReg = XLSX.utils.json_to_sheet(registrados.map((r) => ({
       CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno),
-      'HORA INGRESO': r.horaIngreso, 'HORA SALIDA': r.horaSalida, ESTADO: r.estado
+      'HORA INGRESO': r.horaIngreso, 'HORA SALIDA': r.horaSalida, ESTADO: r.estado,
+      'HORAS EXTRAS': r.horasExtras || '-'
     })));
     const hojaNoReg = XLSX.utils.json_to_sheet(noRegistrados.map((r) => ({
       CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno)

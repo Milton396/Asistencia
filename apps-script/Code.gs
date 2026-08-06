@@ -563,6 +563,62 @@ function calcularEstadoIngreso(horaStr, turnoStr) {
   return horaStr <= horaTurno ? 'A TIEMPO' : 'ATRASADO';
 }
 
+// ==================== HORAS EXTRA ====================
+// Entre semana, la hora extra empieza 9h01s después del inicio del turno
+// (jornada de 8h + 1h de almuerzo). Fines de semana, toda la jornada
+// trabajada cuenta como hora extra. En ambos casos, el exceso se redondea
+// al medio hora más cercano: <30 min → 0, 30-44 min → 30 min, 45-59 min →
+// hora completa (se repite por cada hora de exceso).
+
+function horaASegundos(horaStr) {
+  if (!horaStr) return null;
+  var partes = String(horaStr).split(':').map(Number);
+  return (partes[0] || 0) * 3600 + (partes[1] || 0) * 60 + (partes[2] || 0);
+}
+
+function redondearAMediaHora(totalSegundos) {
+  if (totalSegundos <= 0) return 0;
+  var horas = Math.floor(totalSegundos / 3600);
+  var restoSegundos = totalSegundos % 3600;
+  var minutosExtra;
+  if (restoSegundos < 30 * 60) {
+    minutosExtra = 0;
+  } else if (restoSegundos < 45 * 60) {
+    minutosExtra = 30;
+  } else {
+    horas += 1;
+    minutosExtra = 0;
+  }
+  return horas * 60 + minutosExtra;
+}
+
+function formatoHorasMinutos(totalMinutos) {
+  var horas = Math.floor(totalMinutos / 60);
+  var minutos = totalMinutos % 60;
+  return horas + ':' + (minutos < 10 ? '0' : '') + minutos;
+}
+
+function esFinDeSemana(fecha) {
+  var partes = fecha.split('-').map(Number);
+  var dia = new Date(partes[0], partes[1] - 1, partes[2]).getDay();
+  return dia === 0 || dia === 6;
+}
+
+function calcularHorasExtras(fecha, turnoStr, horaIngresoStr, horaSalidaStr) {
+  if (!horaSalidaStr) return null;
+  var salidaSeg = horaASegundos(horaSalidaStr);
+  var totalSegundos;
+  if (esFinDeSemana(fecha)) {
+    var ingresoSeg = horaASegundos(horaIngresoStr);
+    totalSegundos = ingresoSeg == null ? 0 : salidaSeg - ingresoSeg;
+  } else {
+    var turnoSeg = horaASegundos(turnoStr.length === 5 ? turnoStr + ':00' : turnoStr);
+    var umbral = turnoSeg + 9 * 3600 + 1;
+    totalSegundos = salidaSeg - umbral;
+  }
+  return formatoHorasMinutos(redondearAMediaHora(totalSegundos));
+}
+
 function registrarIngreso(body) {
   var distancia = validarUbicacion(body.lat, body.lng);
   var empleado = buscarEmpleado(body.codigo);
@@ -654,7 +710,8 @@ function generarInforme(fecha) {
     if (reg && reg.horaIngreso) {
       registrados.push({
         codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
-        horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '', estado: reg.estado
+        horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '', estado: reg.estado,
+        horasExtras: calcularHorasExtras(fecha, emp.turno, reg.horaIngreso, reg.horaSalida)
       });
     } else {
       noRegistrados.push({ codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
