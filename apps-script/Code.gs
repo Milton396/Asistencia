@@ -15,6 +15,7 @@ var PASSWORD_DEFECTO = 'admin123';
 var CACHE_TTL_SEGUNDOS = 120; // 2 minutos
 var NOMBRE_EMPRESA = 'Bodega Arupos Telconet';
 var CORREO_COPIA_HORAS_EXTRA = 'mguanulema@telconet.ec';
+var MARGEN_PRECISION_MAX = 50; // metros; tope al margen de error GPS que se acepta
 
 // ==================== ENTRADAS HTTP ====================
 
@@ -471,7 +472,7 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function validarUbicacion(lat, lng) {
+function validarUbicacion(lat, lng, accuracy) {
   var cfg = getConfig();
   if (!cfg.LAT || !cfg.LNG) {
     throw new Error('La ubicación de referencia no está configurada. Contacte al administrador.');
@@ -481,7 +482,12 @@ function validarUbicacion(lat, lng) {
   }
   var distancia = haversine(lat, lng, Number(cfg.LAT), Number(cfg.LNG));
   var radio = Number(cfg.RADIO_METROS || 5);
-  if (distancia > radio) {
+  // Se amplía el radio con el margen de error que reportó el dispositivo
+  // (topado), igual que en el frontend, para no rechazar en falso a
+  // celulares/tablets con GPS menos preciso.
+  var margen = Math.min(Number(accuracy) || 0, MARGEN_PRECISION_MAX);
+  var radioEfectivo = radio + margen;
+  if (distancia > radioEfectivo) {
     throw new Error('Fuera de la ubicación permitida. Distancia: ' + distancia.toFixed(1) + ' m (máx ' + radio + ' m)');
   }
   return distancia;
@@ -701,7 +707,7 @@ function enviarCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horas
 }
 
 function registrarIngreso(body) {
-  var distancia = validarUbicacion(body.lat, body.lng);
+  var distancia = validarUbicacion(body.lat, body.lng, body.accuracy);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
 
@@ -737,7 +743,7 @@ function registrarIngreso(body) {
 }
 
 function registrarSalida(body) {
-  var distancia = validarUbicacion(body.lat, body.lng);
+  var distancia = validarUbicacion(body.lat, body.lng, body.accuracy);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
 

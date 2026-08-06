@@ -168,30 +168,31 @@ El registro exige que el empleado esté dentro de un radio (en metros) de
 la ubicación de referencia configurada en Administración → **Ubicación**.
 La API de geolocalización del navegador (`navigator.geolocation`) depende
 del GPS del dispositivo, que en la práctica suele tener una precisión de
-5–30 m al aire libre y bastante peor en interiores. Si configuras un radio
-muy ajustado (por ejemplo 2 m), es probable que alguien parado exactamente
-en el sitio correcto sea rechazado por el margen de error del propio GPS,
-no por estar realmente fuera de lugar — la app muestra la precisión
-reportada por el dispositivo junto al resultado para ayudar a diagnosticar
-esto. Si da problemas en la práctica, prueba con un radio mayor (5–10 m).
+5–30 m al aire libre y bastante peor en interiores.
 
-### "Permiso denegado" o dispositivos que no ubican bien
+Para no rechazar en falso a alguien que sí está en el sitio correcto pero
+cuyo dispositivo tiene poco GPS, la validación **considera el margen de
+error que reporta el propio dispositivo**: se acepta el registro si
+`distancia ≤ radio configurado + margen de error` (el margen se topa en
+50 m — constante `MARGEN_PRECISION_MAX`, tanto en `js/app.js` como en
+`Code.gs` — para que un dispositivo con precisión realmente mala, ej.
+±500 m, no vuelva inútil el control). Esto se valida igual en el
+navegador (para no dejar avanzar a la cámara) y en el servidor (por si
+alguien intenta saltarse el frontend), así que ambos deben coincidir. La
+app siempre muestra la distancia calculada y la precisión GPS reportada,
+para diagnosticar si un rechazo es por estar realmente lejos o por poca
+precisión. Si sigue dando problemas en la práctica, prueba con un radio
+base mayor (Administración → Ubicación).
 
-- **"Permiso denegado"** (ubicación o cámara): el navegador del equipo ya
-  quedó marcado como "bloqueado" para ese permiso, normalmente porque
-  alguien lo rechazó una vez. Se soluciona desde el propio dispositivo, no
-  desde la app: ícono de candado junto a la dirección web → Permisos →
-  activar Ubicación/Cámara → recargar la página. La app ahora muestra este
-  mensaje en español con la instrucción incluida, en vez del texto crudo
-  (y a veces en inglés) que devuelve el navegador.
-- **Tablets o celulares que no reconocen el rango**: muchos son solo
-  Wi-Fi, sin chip GPS real, y ubican por red con mucho menos precisión (a
-  veces cientos de metros). La app ahora reintenta automáticamente con
-  ubicación por red si la de alta precisión falla o se agota el tiempo,
-  pero si el dispositivo no tiene forma de ubicarse con precisión
-  razonable, seguirá quedando fuera del radio configurado — en esos casos
-  conviene ampliar el radio (ver arriba) o registrar la asistencia desde
-  un equipo con GPS real.
+### "Permiso denegado" en cámara o ubicación
+
+El navegador del equipo ya quedó marcado como "bloqueado" para ese
+permiso, normalmente porque alguien lo rechazó una vez. Se soluciona
+desde el propio dispositivo, no desde la app: ícono de candado junto a
+la dirección web → Permisos → activar Ubicación/Cámara → recargar la
+página. La app muestra este mensaje en español con la instrucción
+incluida, en vez del texto crudo (y a veces en inglés) que devuelve el
+navegador.
 
 ## Estructura del proyecto
 

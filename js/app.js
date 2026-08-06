@@ -1,5 +1,7 @@
 // Lógica del kiosco de registro de asistencia (entrada / salida).
 const Kiosko = (() => {
+  const MARGEN_PRECISION_MAX = 50; // metros; tope al margen de error GPS que se acepta
+
   let modo = 'ingreso';
   let config = null;
   let empleados = [];
@@ -91,13 +93,18 @@ const Kiosko = (() => {
       }
       ubicacion = await Utils.getUbicacionActual();
       const distancia = Utils.haversine(ubicacion.lat, ubicacion.lng, config.lat, config.lng);
-      const dentro = distancia <= config.radio;
+      // El radio configurado se amplía con el margen de error que reporta
+      // el propio dispositivo (topado), para no rechazar en falso a
+      // celulares/tablets con GPS menos preciso.
+      const margen = Math.min(ubicacion.accuracy || 0, MARGEN_PRECISION_MAX);
+      const radioEfectivo = config.radio + margen;
+      const dentro = distancia <= radioEfectivo;
       estadoEl.className = dentro ? 'ok' : 'error';
       estadoEl.innerHTML = dentro
         ? `✅ Dentro del rango permitido (distancia: ${distancia.toFixed(1)} m)`
         : `❌ Fuera del rango permitido. Distancia: ${distancia.toFixed(1)} m (máx ${config.radio} m)`;
-      if (ubicacion.accuracy > config.radio) {
-        estadoEl.innerHTML += `<br><small>Precisión GPS del dispositivo: ±${ubicacion.accuracy.toFixed(0)} m. En espacios cerrados la precisión puede ser menor.</small>`;
+      if (margen > 0) {
+        estadoEl.innerHTML += `<br><small>Precisión GPS del dispositivo: ±${ubicacion.accuracy.toFixed(0)} m (se considera al validar, hasta ±${MARGEN_PRECISION_MAX} m). En espacios cerrados la precisión puede ser menor.</small>`;
       }
       if (dentro) {
         el('paso-camara').classList.remove('hidden');
@@ -135,7 +142,8 @@ const Kiosko = (() => {
         codigo: empleadoActual.codigo,
         imagenBase64: fotoBase64,
         lat: ubicacion.lat,
-        lng: ubicacion.lng
+        lng: ubicacion.lng,
+        accuracy: ubicacion.accuracy
       });
       mostrarResultado(true, `${data.nombre} — ${data.estado} (${data.hora})`);
       if (data.esUltimoTurno && modo === 'ingreso') {
