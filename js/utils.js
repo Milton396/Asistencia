@@ -42,14 +42,60 @@ const Utils = (() => {
     });
   }
 
+  // Una sola lectura de getCurrentPosition suele ser la primera que entrega
+  // el dispositivo, que en la práctica es a menudo la menos precisa (el GPS
+  // se va afinando en los primeros segundos). Aquí se escuchan varias
+  // lecturas durante un rato corto y se usa la de menor "accuracy" (mayor
+  // precisión), en vez de quedarse con la primera que llegue.
+  function observarMejorUbicacion(duracionMs = 6000) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Este dispositivo o navegador no soporta ubicación GPS.'));
+        return;
+      }
+      let mejor = null;
+      let terminado = false;
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lectura = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          };
+          if (!mejor || lectura.accuracy < mejor.accuracy) mejor = lectura;
+          // Con una lectura ya bastante precisa no hace falta seguir esperando.
+          if (lectura.accuracy <= 15) finalizar();
+        },
+        (err) => {
+          // Un error a mitad de camino no invalida una buena lectura previa;
+          // solo se propaga si todavía no se había obtenido ninguna.
+          if (!mejor) {
+            terminado = true;
+            navigator.geolocation.clearWatch(watchId);
+            reject(errorUbicacionLegible(err));
+          }
+        },
+        { enableHighAccuracy: true, timeout: duracionMs, maximumAge: 0 }
+      );
+      function finalizar() {
+        if (terminado) return;
+        terminado = true;
+        navigator.geolocation.clearWatch(watchId);
+        if (mejor) resolve(mejor);
+        else reject(new Error('TIMEOUT_SIN_LECTURA'));
+      }
+      setTimeout(finalizar, duracionMs);
+    });
+  }
+
   // Muchas tablets/celulares sin GPS real fallan o se agotan en alta
   // precisión; reintenta una vez con ubicación por red (menos exacta, pero
   // funciona en más dispositivos) antes de rendirse.
   async function getUbicacionActual() {
     try {
-      return await intentarUbicacion(true);
+      return await observarMejorUbicacion(6000);
     } catch (err) {
-      if (err.code === 2 || err.code === 3) {
+      if (err.message === 'TIMEOUT_SIN_LECTURA' || err.code === 2 || err.code === 3) {
         return await intentarUbicacion(false);
       }
       throw err;

@@ -204,6 +204,10 @@ video, img#foto-preview {
 .fila-inline input { margin-bottom: 0; }
 .fila-inline label { margin: 0; white-space: nowrap; }
 
+.buscador-codigo { display: flex; gap: 10px; }
+.buscador-codigo input { flex: 1; margin-bottom: 0; }
+.buscador-codigo button { flex-shrink: 0; }
+
 /* ---------- Toasts ---------- */
 #toast-container {
   position: fixed;

@@ -7,6 +7,10 @@ const Kiosko = (() => {
   let empleadoActual = null;
   let ubicacion = null;
   let fotoBase64 = null;
+  // Se incrementa en cada reinicio de flujo o nueva verificación de ubicación,
+  // para poder descartar respuestas de GPS que lleguen tarde (de un intento
+  // anterior) y no pisen el estado de un ciclo más nuevo.
+  let tokenUbicacion = 0;
 
   const el = (id) => document.getElementById(id);
 
@@ -16,6 +20,9 @@ const Kiosko = (() => {
     el('input-codigo').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') buscarEmpleado();
     });
+    // Respaldo del Enter: en varias tablets el teclado numérico
+    // (inputmode="numeric") no muestra tecla Enter/Done.
+    el('btn-buscar-codigo').addEventListener('click', buscarEmpleado);
     el('btn-verificar-ubicacion').addEventListener('click', verificarUbicacion);
     el('btn-capturar').addEventListener('click', capturarFoto);
     el('btn-reintentar').addEventListener('click', reintentarFoto);
@@ -35,6 +42,7 @@ const Kiosko = (() => {
   }
 
   function reiniciarFlujo() {
+    tokenUbicacion++; // invalida cualquier verificación de ubicación del ciclo anterior que siga en curso
     empleadoActual = null;
     ubicacion = null;
     fotoBase64 = null;
@@ -45,7 +53,9 @@ const Kiosko = (() => {
     el('paso-camara').classList.add('hidden');
     el('paso-confirmar').classList.add('hidden');
     el('resultado').classList.add('hidden');
-    el('input-codigo').focus();
+    // En varios navegadores/tablets móviles, pedir el foco justo al ocultar
+    // o mostrar elementos no reabre el teclado; un pequeño retraso lo hace confiable.
+    setTimeout(() => el('input-codigo').focus(), 50);
   }
 
   async function refrescarEmpleados() {
@@ -77,19 +87,32 @@ const Kiosko = (() => {
   }
 
   async function verificarUbicacion() {
+    // Cada llamada invalida cualquier verificación anterior todavía en
+    // curso (p. ej. si el usuario tocó "Reintentar" antes de que la
+    // primera lectura de GPS respondiera). Sin esto, una respuesta vieja
+    // y lenta (fallback por red) podía llegar después y pisar el estado
+    // de una lectura más nueva y más precisa, con resultados inconsistentes
+    // entre lo que se mostraba en pantalla y lo que finalmente se enviaba
+    // al servidor al confirmar el registro.
+    const miToken = ++tokenUbicacion;
     const estadoEl = el('ubicacion-estado');
+    const btnReintentar = el('btn-verificar-ubicacion');
     estadoEl.textContent = 'Verificando ubicación...';
     estadoEl.className = '';
     el('paso-camara').classList.add('hidden');
+    btnReintentar.disabled = true;
     try {
       // Se consulta fresca en cada intento (no una sola vez al cargar la
       // página), para que un cambio de radio/ubicación desde Administración
       // se aplique de inmediato sin tener que recargar el kiosco.
       const config = await Api.get('config');
+      if (miToken !== tokenUbicacion) return; // ya no es la verificación vigente
       if (!config || !config.lat || !config.lng) {
         throw new Error('La ubicación de referencia no está configurada. Contacte al administrador.');
       }
-      ubicacion = await Utils.getUbicacionActual();
+      const pos = await Utils.getUbicacionActual();
+      if (miToken !== tokenUbicacion) return; // ya no es la verificación vigente
+      ubicacion = pos;
       const distancia = Utils.haversine(ubicacion.lat, ubicacion.lng, config.lat, config.lng);
       // El radio configurado se amplía con el margen de error que reporta
       // el propio dispositivo (topado), para no rechazar en falso a
@@ -109,8 +132,11 @@ const Kiosko = (() => {
         await Camera.iniciar(el('video-preview'));
       }
     } catch (err) {
+      if (miToken !== tokenUbicacion) return; // ya no es la verificación vigente
       estadoEl.className = 'error';
       estadoEl.textContent = '❌ ' + err.message;
+    } finally {
+      if (miToken === tokenUbicacion) btnReintentar.disabled = false;
     }
   }
 
