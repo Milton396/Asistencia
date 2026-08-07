@@ -15,7 +15,7 @@ const Utils = (() => {
   // de texto (y hasta de idioma) según el dispositivo y confunde al usuario.
   function errorUbicacionLegible(err) {
     const mensajes = {
-      1: 'Permiso de ubicación denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Ubicación) y vuelve a intentar.',
+      1: 'Permiso de ubicación denegado. Actívalo desde los ajustes de permisos de este sitio en tu navegador (o en los ajustes de privacidad del teléfono) y vuelve a intentar.',
       2: 'No se pudo determinar la ubicación de este dispositivo (sin señal de GPS/red). Prueba cerca de una ventana o al aire libre.',
       3: 'Se agotó el tiempo esperando la ubicación. Verifica que el GPS esté activado e intenta de nuevo.'
     };

@@ -188,11 +188,17 @@ base mayor (Administración → Ubicación).
 
 El navegador del equipo ya quedó marcado como "bloqueado" para ese
 permiso, normalmente porque alguien lo rechazó una vez. Se soluciona
-desde el propio dispositivo, no desde la app: ícono de candado junto a
-la dirección web → Permisos → activar Ubicación/Cámara → recargar la
-página. La app muestra este mensaje en español con la instrucción
-incluida, en vez del texto crudo (y a veces en inglés) que devuelve el
-navegador.
+desde el propio dispositivo, no desde la app: hay que activar Cámara o
+Ubicación para este sitio en los ajustes de permisos del navegador y
+recargar la página. La app muestra este mensaje en español, en vez del
+texto crudo (y a veces en inglés) que devuelve el navegador, pero sin
+detallar la ruta exacta porque varía por navegador/SO:
+
+- **Chrome/Android**: ícono de candado junto a la dirección web →
+  Permisos.
+- **Safari/iPhone**: ícono "aA" en la barra de direcciones →
+  Configuración del sitio web, o Ajustes del iPhone → Safari →
+  Cámara/Ubicación.
 
 ## Estructura del proyecto
 

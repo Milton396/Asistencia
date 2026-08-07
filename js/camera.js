@@ -6,8 +6,8 @@ const Camera = (() => {
   // vacío o en inglés según el dispositivo).
   function errorCamaraLegible(err) {
     const mensajes = {
-      NotAllowedError: 'Permiso de cámara denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Cámara) y vuelve a intentar.',
-      PermissionDeniedError: 'Permiso de cámara denegado. Actívalo en la configuración del navegador (ícono de candado junto a la dirección web → Permisos → Cámara) y vuelve a intentar.',
+      NotAllowedError: 'Permiso de cámara denegado. Actívalo desde los ajustes de permisos de este sitio en tu navegador (o en los ajustes de privacidad del teléfono) y vuelve a intentar.',
+      PermissionDeniedError: 'Permiso de cámara denegado. Actívalo desde los ajustes de permisos de este sitio en tu navegador (o en los ajustes de privacidad del teléfono) y vuelve a intentar.',
       NotFoundError: 'No se encontró ninguna cámara en este dispositivo.',
       NotReadableError: 'La cámara está siendo usada por otra aplicación. Ciérrala e intenta de nuevo.',
       OverconstrainedError: 'La cámara de este dispositivo no cumple los requisitos solicitados.'
