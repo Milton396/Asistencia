@@ -45,12 +45,16 @@ const Admin = (() => {
     el('tabla-usuarios').addEventListener('click', onClickTablaUsuarios);
   }
 
-  function mostrarVistaAdmin() {
+  async function mostrarVistaAdmin() {
     el('vista-kiosko').classList.add('hidden');
     el('vista-admin').classList.remove('hidden');
     cambiarTab('empleados');
-    cargarEmpleados();
-    cargarTurnos();
+    // cargarTurnos() debe completarse antes que cargarEmpleados(): esta
+    // última rellena el selector "Asignar turno" con el arreglo `turnos`,
+    // que si todavía está vacío (carrera entre ambas peticiones) deja el
+    // desplegable sin opciones.
+    await cargarTurnos();
+    await cargarEmpleados();
     cargarUbicacion();
     cargarUsuarios();
   }
