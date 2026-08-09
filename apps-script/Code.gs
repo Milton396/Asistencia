@@ -525,7 +525,7 @@ function horaActual() {
 }
 
 function encabezadosRegistro() {
-  return ['CODIGO', 'NOMBRE', 'CARGO', 'TURNO', 'FECHA', 'HORA INGRESO', 'IMAGEN1', 'HORA SALIDA', 'IMAGEN2', 'OBSERVACION', 'ESTADO'];
+  return ['CODIGO', 'NOMBRE', 'CARGO', 'TURNO', 'FECHA', 'HORA INGRESO', 'IMAGEN1', 'HORA SALIDA', 'IMAGEN2', 'OBSERVACION', 'ESTADO INGRESO', 'ESTADO SALIDA'];
 }
 
 // Google Sheets autoconvierte texto con forma de fecha/hora ("2026-08-04", "07:00:00")
@@ -547,6 +547,23 @@ function formatoHora(valor, patron) {
   if (Object.prototype.toString.call(valor) === '[object Date]') {
     return Utilities.formatDate(valor, TIMEZONE, patron);
   }
+  // Refuerzo: si una fórmula (ej. un BUSCARV hacia otra hoja) trae una hora
+  // pero pierde el formato al llegar a la celda, Sheets entrega un número
+  // crudo (fracción del día: 0.3333... = 08:00) en vez de un Date o un
+  // texto "HH:mm". Sin esto, ese número pasaba intacto y rompía en
+  // silencio calcularEstadoIngreso/calcularHorasExtras (comparaciones de
+  // texto contra un número dan siempre falso). Solo aplica a columnas de
+  // hora (patrón que empieza con "HH"); FECHA usa "yyyy-MM-dd" y no debe
+  // interpretarse como fracción de día.
+  if (typeof valor === 'number' && isFinite(valor) && /^HH/.test(patron)) {
+    var totalSegundos = Math.round(((valor % 1) + 1) % 1 * 24 * 3600);
+    var horas = Math.floor(totalSegundos / 3600);
+    var minutos = Math.floor((totalSegundos % 3600) / 60);
+    var segundos = totalSegundos % 60;
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var horaCompleta = pad(horas) + ':' + pad(minutos) + ':' + pad(segundos);
+    return patron === 'HH:mm' ? horaCompleta.substring(0, 5) : horaCompleta;
+  }
   return valor;
 }
 
@@ -563,7 +580,8 @@ function buscarFilaRegistro(codigo, fecha) {
         fecha: filaFecha,
         horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'), imagen1: values[i][6],
         horaSalida: formatoHora(values[i][7], 'HH:mm:ss'), imagen2: values[i][8],
-        observacion: values[i][9], estado: values[i][10]
+        observacion: values[i][9],
+        estadoIngreso: values[i][10], estadoSalida: values[i][11]
       };
     }
   }
@@ -719,17 +737,18 @@ function registrarIngreso(body) {
 
   var hora = horaActual();
   var urlFoto = guardarFoto(body.imagenBase64, 'INGRESO', empleado.codigo);
-  var estado = calcularEstadoIngreso(hora, empleado.turno);
+  var estadoIngreso = calcularEstadoIngreso(hora, empleado.turno);
 
   var sh = getSheet(SHEET_REGISTRO);
   var filaDestino = existente ? existente.rowIndex : sh.getLastRow() + 1;
   formatearColumnasTexto(sh, filaDestino);
-  sh.getRange(filaDestino, 1, 1, 11).setValues([[
+  sh.getRange(filaDestino, 1, 1, 12).setValues([[
     empleado.codigo, empleado.nombre, empleado.cargo, empleado.turno, fecha, hora, urlFoto,
     existente ? (existente.horaSalida || '') : '',
     existente ? (existente.imagen2 || '') : '',
     existente ? (existente.observacion || '') : '',
-    estado
+    estadoIngreso,
+    existente ? (existente.estadoSalida || '') : ''
   ]]);
 
   var cfg = obtenerConfigPublica();
@@ -737,7 +756,7 @@ function registrarIngreso(body) {
 
   return {
     nombre: empleado.nombre, cargo: empleado.cargo, turno: empleado.turno,
-    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10,
+    hora: hora, estado: estadoIngreso, distancia: Math.round(distancia * 10) / 10,
     esUltimoTurno: empleado.turno === ultimoTurno
   };
 }
@@ -758,13 +777,16 @@ function registrarSalida(body) {
 
   var hora = horaActual();
   var urlFoto = guardarFoto(body.imagenBase64, 'SALIDA', empleado.codigo);
-  var estado = 'FIN DE JORNADA';
+  var estadoSalida = 'FIN DE JORNADA';
 
   var sh = getSheet(SHEET_REGISTRO);
   formatearColumnasTexto(sh, existente.rowIndex);
-  sh.getRange(existente.rowIndex, 8, 1, 1).setValue(hora);       // HORA SALIDA
-  sh.getRange(existente.rowIndex, 9, 1, 1).setValue(urlFoto);     // IMAGEN2
-  sh.getRange(existente.rowIndex, 11, 1, 1).setValue(estado);     // ESTADO
+  sh.getRange(existente.rowIndex, 8, 1, 1).setValue(hora);          // HORA SALIDA
+  sh.getRange(existente.rowIndex, 9, 1, 1).setValue(urlFoto);       // IMAGEN2
+  // Columna 12 = ESTADO SALIDA. La columna 11 (ESTADO INGRESO), con el
+  // A TIEMPO/ATRASADO calculado al momento del ingreso, ya NO se toca aquí
+  // (antes se sobrescribía con "FIN DE JORNADA" y se perdía ese dato).
+  sh.getRange(existente.rowIndex, 12, 1, 1).setValue(estadoSalida);
 
   var horasExtras = calcularHorasExtras(fecha, empleado.turno, existente.horaIngreso, hora);
   if (horasExtras && horasExtras !== '0:00') {
@@ -773,7 +795,7 @@ function registrarSalida(body) {
 
   return {
     nombre: empleado.nombre, cargo: empleado.cargo, turno: empleado.turno,
-    hora: hora, estado: estado, distancia: Math.round(distancia * 10) / 10,
+    hora: hora, estado: estadoSalida, distancia: Math.round(distancia * 10) / 10,
     horasExtras: horasExtras
   };
 }
@@ -791,7 +813,8 @@ function generarInforme(fecha) {
       registrosDelDia[String(values[i][0])] = {
         horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'),
         horaSalida: formatoHora(values[i][7], 'HH:mm:ss'),
-        estado: values[i][10]
+        estadoIngreso: values[i][10],
+        estadoSalida: values[i][11]
       };
     }
   }
@@ -803,7 +826,8 @@ function generarInforme(fecha) {
     if (reg && reg.horaIngreso) {
       registrados.push({
         codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
-        horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '', estado: reg.estado,
+        horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '',
+        estadoIngreso: reg.estadoIngreso, estadoSalida: reg.estadoSalida || '',
         horasExtras: calcularHorasExtras(fecha, emp.turno, reg.horaIngreso, reg.horaSalida)
       });
     } else {
