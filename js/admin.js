@@ -23,6 +23,9 @@ const Admin = (() => {
     el('btn-cancelar-empleado').addEventListener('click', () => el('modal-empleado').classList.add('hidden'));
     el('btn-guardar-empleado').addEventListener('click', guardarEmpleado);
     el('tabla-empleados').addEventListener('click', onClickTablaEmpleados);
+    el('tabla-empleados').addEventListener('change', onChangeTablaEmpleados);
+    el('chk-empleados-todos').addEventListener('change', alternarTodosEmpleados);
+    el('btn-asignar-turno').addEventListener('click', asignarTurnoSeleccionados);
 
     el('btn-agregar-turno').addEventListener('click', agregarTurno);
     el('btn-guardar-turnos').addEventListener('click', guardarTurnos);
@@ -73,6 +76,7 @@ const Admin = (() => {
     const tbody = el('tabla-empleados').querySelector('tbody');
     tbody.innerHTML = empleados.map((e) => `
       <tr>
+        <td><input type="checkbox" class="chk-empleado" data-codigo="${e.codigo}"></td>
         <td>${e.codigo}</td>
         <td>${e.nombre}</td>
         <td>${e.cargo || ''}</td>
@@ -83,6 +87,8 @@ const Admin = (() => {
           <button class="btn-mini btn-danger" data-accion="eliminar" data-codigo="${e.codigo}">Eliminar</button>
         </td>
       </tr>`).join('');
+    el('chk-empleados-todos').checked = false;
+    actualizarBotonAsignarTurno();
   }
 
   function onClickTablaEmpleados(e) {
@@ -97,11 +103,61 @@ const Admin = (() => {
     }
   }
 
+  function onChangeTablaEmpleados(e) {
+    if (e.target.classList.contains('chk-empleado')) actualizarBotonAsignarTurno();
+  }
+
+  function alternarTodosEmpleados() {
+    const marcar = el('chk-empleados-todos').checked;
+    el('tabla-empleados').querySelectorAll('.chk-empleado').forEach((chk) => { chk.checked = marcar; });
+    actualizarBotonAsignarTurno();
+  }
+
+  function codigosSeleccionados() {
+    return Array.from(el('tabla-empleados').querySelectorAll('.chk-empleado:checked')).map((chk) => chk.dataset.codigo);
+  }
+
+  function actualizarBotonAsignarTurno() {
+    el('btn-asignar-turno').disabled = codigosSeleccionados().length === 0;
+  }
+
+  async function asignarTurnoSeleccionados() {
+    const codigos = codigosSeleccionados();
+    const turno = el('select-asignar-turno').value;
+    if (!codigos.length || !turno) return;
+    if (!confirm(`¿Asignar el turno ${turno} a ${codigos.length} empleado(s) seleccionado(s)?`)) return;
+
+    el('btn-asignar-turno').disabled = true;
+    let exitos = 0;
+    const fallidos = [];
+    for (const codigo of codigos) {
+      const emp = empleados.find((x) => String(x.codigo) === codigo);
+      if (!emp) continue;
+      try {
+        await Api.post('empleadoGuardar', {
+          token: Auth.token(), codigo: emp.codigo, nombre: emp.nombre,
+          cargo: emp.cargo || '', correo: emp.correo || '', turno
+        });
+        exitos++;
+      } catch (err) {
+        fallidos.push(emp.codigo);
+      }
+    }
+
+    if (fallidos.length) {
+      Utils.toast(`${exitos} de ${codigos.length} empleados actualizados. Fallaron: ${fallidos.join(', ')}`, 'error', 8000);
+    } else {
+      Utils.toast(`${exitos} empleado(s) actualizados con el turno ${turno}`, 'ok');
+    }
+    cargarEmpleados();
+  }
+
   function poblarSelectTurnos() {
-    const select = el('select-emp-turno');
-    const actual = select.value;
-    select.innerHTML = turnos.map((t) => `<option value="${t}">${t}</option>`).join('');
-    if (turnos.includes(actual)) select.value = actual;
+    [el('select-emp-turno'), el('select-asignar-turno')].forEach((select) => {
+      const actual = select.value;
+      select.innerHTML = turnos.map((t) => `<option value="${t}">${t}</option>`).join('');
+      if (turnos.includes(actual)) select.value = actual;
+    });
   }
 
   function abrirModalEmpleado(emp) {

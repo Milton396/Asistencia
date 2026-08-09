@@ -91,8 +91,13 @@
     <div class="panel-toolbar">
       <button id="btn-nuevo-empleado" class="btn-primary">+ Nuevo empleado</button>
     </div>
+    <div class="fila-inline">
+      <label for="select-asignar-turno">Asignar turno</label>
+      <select id="select-asignar-turno"></select>
+      <button id="btn-asignar-turno" class="btn-secondary" disabled>Asignar turno a seleccionados</button>
+    </div>
     <table id="tabla-empleados" class="tabla">
-      <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th><th>Correo</th><th>Acciones</th></tr></thead>
+      <thead><tr><th><input type="checkbox" id="chk-empleados-todos"></th><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th><th>Correo</th><th>Acciones</th></tr></thead>
       <tbody></tbody>
     </table>
   </section>
