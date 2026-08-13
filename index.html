@@ -46,6 +46,11 @@
     <div id="empleado-card" class="empleado-card hidden"></div>
   </div>
 
+  <div id="paso-observacion" class="paso hidden">
+    <label for="input-observacion">Observación (opcional)</label>
+    <textarea id="input-observacion" maxlength="200" rows="2" placeholder="Texto informativo, máximo 200 caracteres"></textarea>
+  </div>
+
   <div id="paso-ubicacion" class="paso hidden">
     <div id="ubicacion-estado"></div>
     <button id="btn-verificar-ubicacion" class="btn-secondary">Reintentar ubicación</button>
@@ -60,8 +65,6 @@
 
   <div id="paso-confirmar" class="paso hidden">
     <img id="foto-preview" alt="Foto capturada">
-    <label for="input-observacion">Observación (opcional)</label>
-    <textarea id="input-observacion" maxlength="200" rows="2" placeholder="Texto informativo, máximo 200 caracteres"></textarea>
     <div class="botones">
       <button id="btn-reintentar" class="btn-secondary">Reintentar</button>
       <button id="btn-confirmar" class="btn-primary">Confirmar registro</button>

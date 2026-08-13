@@ -49,6 +49,7 @@ const Kiosko = (() => {
     Camera.detener();
     el('input-codigo').value = '';
     el('empleado-card').classList.add('hidden');
+    el('paso-observacion').classList.add('hidden');
     el('paso-ubicacion').classList.add('hidden');
     el('paso-camara').classList.add('hidden');
     el('paso-confirmar').classList.add('hidden');
@@ -81,6 +82,7 @@ const Kiosko = (() => {
     empleadoActual = emp;
     card.classList.remove('hidden');
     card.innerHTML = `<p><strong>${emp.nombre}</strong></p><p>${emp.cargo || ''} · Turno ${Utils.formatoHora(emp.turno)}</p>`;
+    el('paso-observacion').classList.remove('hidden');
     el('paso-ubicacion').classList.remove('hidden');
     el('paso-camara').classList.add('hidden');
     el('paso-confirmar').classList.add('hidden');
