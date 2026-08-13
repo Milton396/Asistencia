@@ -80,15 +80,15 @@ const Admin = (() => {
     const tbody = el('tabla-empleados').querySelector('tbody');
     tbody.innerHTML = empleados.map((e) => `
       <tr>
-        <td><input type="checkbox" class="chk-empleado" data-codigo="${e.codigo}"></td>
-        <td>${e.codigo}</td>
-        <td>${e.nombre}</td>
-        <td>${e.cargo || ''}</td>
-        <td>${Utils.formatoHora(e.turno)}</td>
-        <td>${e.correo || ''}</td>
+        <td><input type="checkbox" class="chk-empleado" data-codigo="${Utils.escapeHtml(e.codigo)}"></td>
+        <td>${Utils.escapeHtml(e.codigo)}</td>
+        <td>${Utils.escapeHtml(e.nombre)}</td>
+        <td>${Utils.escapeHtml(e.cargo || '')}</td>
+        <td>${Utils.escapeHtml(Utils.formatoHora(e.turno))}</td>
+        <td>${Utils.escapeHtml(e.correo || '')}</td>
         <td>
-          <button class="btn-mini" data-accion="editar" data-codigo="${e.codigo}">Editar</button>
-          <button class="btn-mini btn-danger" data-accion="eliminar" data-codigo="${e.codigo}">Eliminar</button>
+          <button class="btn-mini" data-accion="editar" data-codigo="${Utils.escapeHtml(e.codigo)}">Editar</button>
+          <button class="btn-mini btn-danger" data-accion="eliminar" data-codigo="${Utils.escapeHtml(e.codigo)}">Eliminar</button>
         </td>
       </tr>`).join('');
     el('chk-empleados-todos').checked = false;
@@ -330,11 +330,11 @@ const Admin = (() => {
       `Fecha ${ultimoInforme.fecha} — Registrados: ${ultimoInforme.registrados.length} · No registrados: ${ultimoInforme.noRegistrados.length}`;
 
     el('tabla-registrados').querySelector('tbody').innerHTML = registrados.map((r) => `
-      <tr><td>${r.codigo}</td><td>${r.nombre}</td><td>${Utils.formatoHora(r.turno)}</td><td>${r.horaIngreso}</td><td>${r.horaSalida || '-'}</td><td>${r.estadoIngreso}</td><td>${r.estadoSalida || '-'}</td><td>${r.horasExtras || '-'}</td></tr>
+      <tr><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td><td>${Utils.escapeHtml(r.horaIngreso)}</td><td>${Utils.escapeHtml(r.horaSalida || '-')}</td><td>${Utils.escapeHtml(r.estadoIngreso)}</td><td>${Utils.escapeHtml(r.estadoSalida || '-')}</td><td>${Utils.escapeHtml(r.horasExtras || '-')}</td></tr>
     `).join('');
 
     el('tabla-no-registrados').querySelector('tbody').innerHTML = noRegistrados.map((r) => `
-      <tr><td>${r.codigo}</td><td>${r.nombre}</td><td>${r.cargo || ''}</td><td>${Utils.formatoHora(r.turno)}</td></tr>
+      <tr><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(r.cargo || '')}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td></tr>
     `).join('');
   }
 
@@ -374,11 +374,11 @@ const Admin = (() => {
     const tbody = el('tabla-usuarios').querySelector('tbody');
     tbody.innerHTML = usuarios.map((u) => `
       <tr>
-        <td>${u.username}</td>
-        <td>${u.nombre}</td>
+        <td>${Utils.escapeHtml(u.username)}</td>
+        <td>${Utils.escapeHtml(u.nombre)}</td>
         <td>
-          <button class="btn-mini" data-accion="editar" data-username="${u.username}">Editar</button>
-          <button class="btn-mini btn-danger" data-accion="eliminar" data-username="${u.username}">Eliminar</button>
+          <button class="btn-mini" data-accion="editar" data-username="${Utils.escapeHtml(u.username)}">Editar</button>
+          <button class="btn-mini btn-danger" data-accion="eliminar" data-username="${Utils.escapeHtml(u.username)}">Eliminar</button>
         </td>
       </tr>`).join('');
   }

@@ -126,6 +126,17 @@ const Utils = (() => {
     return str;
   }
 
+  // Escapa caracteres con significado especial en HTML antes de interpolar
+  // datos (nombre, cargo, observación, etc.) dentro de una plantilla que se
+  // asigna a innerHTML. Sin esto, un valor guardado como
+  // "<img src=x onerror=...>" no se muestra como texto: el navegador lo
+  // interpreta como HTML real y ejecuta el script.
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
   function toast(msg, tipo = 'info', ms = 4000) {
     const cont = document.getElementById('toast-container');
     const el = document.createElement('div');
@@ -139,5 +150,5 @@ const Utils = (() => {
     }, ms);
   }
 
-  return { haversine, getUbicacionActual, hoyISO, toast, formatoHora };
+  return { haversine, getUbicacionActual, hoyISO, toast, formatoHora, escapeHtml };
 })();

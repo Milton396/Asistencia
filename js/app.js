@@ -81,7 +81,7 @@ const Kiosko = (() => {
     }
     empleadoActual = emp;
     card.classList.remove('hidden');
-    card.innerHTML = `<p><strong>${emp.nombre}</strong></p><p>${emp.cargo || ''} · Turno ${Utils.formatoHora(emp.turno)}</p>`;
+    card.innerHTML = `<p><strong>${Utils.escapeHtml(emp.nombre)}</strong></p><p>${Utils.escapeHtml(emp.cargo || '')} · Turno ${Utils.escapeHtml(Utils.formatoHora(emp.turno))}</p>`;
     el('paso-observacion').classList.remove('hidden');
     el('paso-ubicacion').classList.remove('hidden');
     el('paso-camara').classList.add('hidden');
