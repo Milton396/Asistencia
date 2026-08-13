@@ -211,14 +211,29 @@ function sha256Hex(texto) {
   }).join('');
 }
 
+// Una sal aleatoria por usuario evita que, si alguien llegara a leer la
+// hoja USUARIOS, pueda atacar todos los hashes a la vez con una tabla
+// precalculada (rainbow table): cada contraseña queda combinada con un
+// valor distinto antes de aplicar SHA-256.
+function generarSalt() {
+  return Utilities.getUuid() + Utilities.getUuid();
+}
+
+function hashConSal(password, salt) {
+  return sha256Hex(String(password || '') + salt);
+}
+
 function ensureUsuariosSheet() {
   var ss = getSpreadsheet();
   var sh = ss.getSheetByName(SHEET_USUARIOS);
   if (!sh) {
     sh = ss.insertSheet(SHEET_USUARIOS);
-    sh.appendRow(['USERNAME', 'PASSWORD_HASH', 'ROL', 'NOMBRE']);
+    sh.appendRow(['USERNAME', 'PASSWORD_HASH', 'ROL', 'NOMBRE', 'SALT']);
     sh.getRange(2, 1).setNumberFormat('@');
-    sh.appendRow(['admin', sha256Hex(PASSWORD_DEFECTO), 'administrador', 'Administrador']);
+    var salt = generarSalt();
+    sh.appendRow(['admin', hashConSal(PASSWORD_DEFECTO, salt), 'administrador', 'Administrador', salt]);
+  } else if (!sh.getRange(1, 5).getValue()) {
+    sh.getRange(1, 5).setValue('SALT'); // migración: hojas creadas antes de esta columna
   }
   return sh;
 }
@@ -238,7 +253,7 @@ function obtenerFilasUsuarios() {
     if (!values[i][0]) continue;
     out.push({
       rowIndex: i + 1, username: String(values[i][0]),
-      passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3]
+      passwordHash: values[i][1], rol: values[i][2], nombre: values[i][3], salt: values[i][4] || ''
     });
   }
   cache.put('usuarios', JSON.stringify(out), CACHE_TTL_SEGUNDOS);
@@ -283,16 +298,18 @@ function usuarioGuardar(body) {
   }
 
   if (existente) {
-    var hash = body.password ? sha256Hex(body.password) : existente.passwordHash;
+    var salt = body.password ? generarSalt() : existente.salt;
+    var hash = body.password ? hashConSal(body.password, salt) : existente.passwordHash;
     sh.getRange(existente.rowIndex, 1).setNumberFormat('@');
-    sh.getRange(existente.rowIndex, 1, 1, 4).setValues([[username, hash, 'administrador', body.nombre]]);
+    sh.getRange(existente.rowIndex, 1, 1, 5).setValues([[username, hash, 'administrador', body.nombre, salt]]);
     invalidarCacheUsuarios();
     return { actualizado: true };
   }
   if (!body.password) throw new Error('La contraseña es obligatoria');
+  var saltNuevo = generarSalt();
   var fila = sh.getLastRow() + 1;
   sh.getRange(fila, 1).setNumberFormat('@');
-  sh.getRange(fila, 1, 1, 4).setValues([[username, sha256Hex(body.password), 'administrador', body.nombre]]);
+  sh.getRange(fila, 1, 1, 5).setValues([[username, hashConSal(body.password, saltNuevo), 'administrador', body.nombre, saltNuevo]]);
   invalidarCacheUsuarios();
   return { creado: true };
 }
@@ -325,11 +342,24 @@ function login(username, password) {
   }
 
   var user = buscarUsuarioInterno(username);
-  if (!user || sha256Hex(password || '') !== user.passwordHash) {
+  // Cuentas creadas antes de agregar la sal no tienen SALT todavía: se
+  // verifican con el hash antiguo (sin sal) por compatibilidad.
+  var hashValido = user && (user.salt ? hashConSal(password, user.salt) : sha256Hex(password || ''));
+  if (!user || hashValido !== user.passwordHash) {
     cache.put(clave, String(intentos + 1), LOGIN_BLOQUEO_SEGUNDOS);
     throw new Error('Usuario o contraseña incorrectos');
   }
   if (user.rol !== 'administrador') throw new Error('Esta cuenta no tiene acceso de administrador.');
+
+  // Login correcto: si la cuenta todavía no tenía sal, se la agrega ahora
+  // (recalculando el hash), de forma transparente para el usuario.
+  if (!user.salt) {
+    var saltNueva = generarSalt();
+    var sh = ensureUsuariosSheet();
+    sh.getRange(user.rowIndex, 2).setValue(hashConSal(password, saltNueva));
+    sh.getRange(user.rowIndex, 5).setValue(saltNueva);
+    invalidarCacheUsuarios();
+  }
 
   cache.remove(clave);
   var cfg = getConfig();
@@ -372,7 +402,9 @@ function passwordCambiar(token, nuevaPassword) {
   var user = buscarUsuarioInterno(sesion.username);
   if (!user) throw new Error('Usuario no encontrado');
   var sh = ensureUsuariosSheet();
-  sh.getRange(user.rowIndex, 2).setValue(sha256Hex(nuevaPassword));
+  var salt = generarSalt();
+  sh.getRange(user.rowIndex, 2).setValue(hashConSal(nuevaPassword, salt));
+  sh.getRange(user.rowIndex, 5).setValue(salt);
   invalidarCacheUsuarios();
   return { ok: true };
 }

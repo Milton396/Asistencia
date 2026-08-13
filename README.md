@@ -191,6 +191,13 @@ uno sobre otro para este proyecto.
   kiosco). Sin esto, un valor con HTML/JS incrustado se ejecutaría en el
   navegador de quien viera esa pantalla — incluido el kiosco público, que
   no requiere login.
+- **Contraseñas con sal**: cada cuenta de la hoja USUARIOS tiene una sal
+  aleatoria (columna `SALT`) que se combina con la contraseña antes de
+  aplicar SHA-256. Así, si alguien llegara a leer esa hoja, no puede
+  atacar todas las cuentas a la vez con una tabla precalculada (rainbow
+  table) — tiene que romper cada hash por separado. Las cuentas creadas
+  antes de este cambio se migran solas, de forma transparente, la
+  próxima vez que ese usuario inicia sesión con éxito.
 
 ## Precisión GPS y el radio permitido
 
