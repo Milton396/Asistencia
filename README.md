@@ -162,6 +162,25 @@ uno sobre otro para este proyecto.
   se guarda un cambio, así que nunca se sirven datos obsoletos por más
   de una escritura de diferencia.
 
+## Seguridad
+
+- **Límite de intentos de login**: tras 3 contraseñas incorrectas
+  seguidas para un mismo usuario, se bloquea ese usuario por 15 minutos
+  (constantes `LOGIN_MAX_INTENTOS`/`LOGIN_BLOQUEO_SEGUNDOS`). Se
+  resetea solo al iniciar sesión con éxito o al expirar el bloqueo. No
+  se bloquea por IP porque Apps Script no la expone en el evento del
+  Web App.
+- **Límite de velocidad del kiosco público** (`registrarIngreso`/
+  `registrarSalida`, que no piden login): máximo 30 solicitudes por
+  minuto en total, compartidas entre ambas acciones (constantes
+  `KIOSCO_LIMITE_INTENTOS`/`KIOSCO_LIMITE_VENTANA_SEGUNDOS`). Evita que
+  alguien con la URL pueda spamear registros falsos con un script fuera
+  del navegador y agotar la cuota de Drive o de correo — CORS no
+  protege contra eso, solo restringe JavaScript de otros sitios web
+  corriendo en un navegador.
+- Ambos límites usan `CacheService`, así que se reinician solos si el
+  script se vuelve a desplegar.
+
 ## Precisión GPS y el radio permitido
 
 El registro exige que el empleado esté dentro de un radio (en metros) de

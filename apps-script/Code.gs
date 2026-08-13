@@ -16,6 +16,10 @@ var CACHE_TTL_SEGUNDOS = 120; // 2 minutos
 var NOMBRE_EMPRESA = 'Bodega Arupos Telconet';
 var CORREO_COPIA_HORAS_EXTRA = 'mguanulema@telconet.ec';
 var MARGEN_PRECISION_MAX = 50; // metros; tope al margen de error GPS que se acepta
+var LOGIN_MAX_INTENTOS = 3;
+var LOGIN_BLOQUEO_SEGUNDOS = 900; // 15 minutos
+var KIOSCO_LIMITE_INTENTOS = 30; // solicitudes de registro (ingreso+salida)
+var KIOSCO_LIMITE_VENTANA_SEGUNDOS = 60; // por minuto
 
 // ==================== ENTRADAS HTTP ====================
 
@@ -305,12 +309,29 @@ function usuarioEliminar(username) {
   return { eliminado: true };
 }
 
+function loginIntentosClave(username) {
+  return 'login_intentos_' + String(username || '').trim().toLowerCase();
+}
+
+// Bloquea un usuario (no la IP: Apps Script no la expone) tras varios
+// intentos fallidos seguidos, por un rato, para dificultar la fuerza bruta
+// de contraseñas. Se resetea solo al expirar la caché o al iniciar sesión bien.
 function login(username, password) {
+  var cache = CacheService.getScriptCache();
+  var clave = loginIntentosClave(username);
+  var intentos = Number(cache.get(clave) || 0);
+  if (intentos >= LOGIN_MAX_INTENTOS) {
+    throw new Error('Demasiados intentos fallidos. Espere unos minutos e intente de nuevo.');
+  }
+
   var user = buscarUsuarioInterno(username);
   if (!user || sha256Hex(password || '') !== user.passwordHash) {
+    cache.put(clave, String(intentos + 1), LOGIN_BLOQUEO_SEGUNDOS);
     throw new Error('Usuario o contraseña incorrectos');
   }
   if (user.rol !== 'administrador') throw new Error('Esta cuenta no tiene acceso de administrador.');
+
+  cache.remove(clave);
   var cfg = getConfig();
   var expiry = Date.now() + TOKEN_DURACION_MS;
   var payload = Utilities.base64EncodeWebSafe(JSON.stringify({ u: user.username, r: user.rol, e: expiry }));
@@ -724,7 +745,24 @@ function enviarCorreoHorasExtras(empleado, fecha, horaIngreso, horaSalida, horas
   }
 }
 
+// Límite de velocidad del kiosco público (sin login): sin esto, cualquiera
+// con la URL podría spamear registros falsos con un script fuera del
+// navegador (CORS no protege contra eso) y agotar la cuota de Drive/correo.
+// Ventana fija por minuto, compartida entre ingreso y salida; no distingue
+// por IP porque Apps Script no la expone en el evento del Web App.
+function verificarLimiteKiosco() {
+  var cache = CacheService.getScriptCache();
+  var ventana = Math.floor(Date.now() / (KIOSCO_LIMITE_VENTANA_SEGUNDOS * 1000));
+  var clave = 'kiosco_limite_' + ventana;
+  var intentos = Number(cache.get(clave) || 0);
+  if (intentos >= KIOSCO_LIMITE_INTENTOS) {
+    throw new Error('Demasiadas solicitudes en poco tiempo. Espere un momento e intente de nuevo.');
+  }
+  cache.put(clave, String(intentos + 1), KIOSCO_LIMITE_VENTANA_SEGUNDOS + 10);
+}
+
 function registrarIngreso(body) {
+  verificarLimiteKiosco();
   var distancia = validarUbicacion(body.lat, body.lng, body.accuracy);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
@@ -762,6 +800,7 @@ function registrarIngreso(body) {
 }
 
 function registrarSalida(body) {
+  verificarLimiteKiosco();
   var distancia = validarUbicacion(body.lat, body.lng, body.accuracy);
   var empleado = buscarEmpleado(body.codigo);
   if (!empleado) throw new Error('Código no encontrado');
