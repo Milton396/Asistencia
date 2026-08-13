@@ -74,14 +74,17 @@ body {
 
 label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--borde);
   border-radius: 8px;
   font-size: 1rem;
   margin-bottom: 10px;
+  font-family: inherit;
 }
+
+textarea { resize: vertical; }
 
 .btn-primary, .btn-secondary, .btn-mini {
   padding: 12px 18px;

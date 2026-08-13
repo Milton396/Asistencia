@@ -761,6 +761,18 @@ function verificarLimiteKiosco() {
   cache.put(clave, String(intentos + 1), KIOSCO_LIMITE_VENTANA_SEGUNDOS + 10);
 }
 
+// El ingreso y la salida comparten una sola columna OBSERVACION: si ambos
+// traen texto (p. ej. una nota al entrar y otra distinta al salir), se
+// concatenan en vez de que la segunda pise a la primera. Se recorta a 200
+// caracteres también aquí por si alguien llama a la API sin pasar por el
+// formulario (el maxlength del textarea no protege al servidor).
+function combinarObservacion(actual, nueva) {
+  actual = (actual || '').toString();
+  nueva = (nueva || '').toString().trim().slice(0, 200);
+  if (!nueva) return actual;
+  return actual ? (actual + ' / ' + nueva) : nueva;
+}
+
 function registrarIngreso(body) {
   verificarLimiteKiosco();
   var distancia = validarUbicacion(body.lat, body.lng, body.accuracy);
@@ -784,7 +796,7 @@ function registrarIngreso(body) {
     empleado.codigo, empleado.nombre, empleado.cargo, empleado.turno, fecha, hora, urlFoto,
     existente ? (existente.horaSalida || '') : '',
     existente ? (existente.imagen2 || '') : '',
-    existente ? (existente.observacion || '') : '',
+    combinarObservacion(existente ? existente.observacion : '', body.observacion),
     estadoIngreso,
     existente ? (existente.estadoSalida || '') : ''
   ]]);
@@ -822,6 +834,7 @@ function registrarSalida(body) {
   formatearColumnasTexto(sh, existente.rowIndex);
   sh.getRange(existente.rowIndex, 8, 1, 1).setValue(hora);          // HORA SALIDA
   sh.getRange(existente.rowIndex, 9, 1, 1).setValue(urlFoto);       // IMAGEN2
+  sh.getRange(existente.rowIndex, 10, 1, 1).setValue(combinarObservacion(existente.observacion, body.observacion)); // OBSERVACION
   // Columna 12 = ESTADO SALIDA. La columna 11 (ESTADO INGRESO), con el
   // A TIEMPO/ATRASADO calculado al momento del ingreso, ya NO se toca aquí
   // (antes se sobrescribía con "FIN DE JORNADA" y se perdía ese dato).

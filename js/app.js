@@ -53,6 +53,7 @@ const Kiosko = (() => {
     el('paso-camara').classList.add('hidden');
     el('paso-confirmar').classList.add('hidden');
     el('resultado').classList.add('hidden');
+    el('input-observacion').value = '';
     // En varios navegadores/tablets móviles, pedir el foco justo al ocultar
     // o mostrar elementos no reabre el teclado; un pequeño retraso lo hace confiable.
     setTimeout(() => el('input-codigo').focus(), 50);
@@ -167,7 +168,8 @@ const Kiosko = (() => {
         imagenBase64: fotoBase64,
         lat: ubicacion.lat,
         lng: ubicacion.lng,
-        accuracy: ubicacion.accuracy
+        accuracy: ubicacion.accuracy,
+        observacion: el('input-observacion').value.trim().slice(0, 200)
       });
       mostrarResultado(true, `${data.nombre} — ${data.estado} (${data.hora})`);
       if (data.esUltimoTurno && modo === 'ingreso') {

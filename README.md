@@ -111,6 +111,11 @@ uno sobre otro para este proyecto.
   hora es ≤ hora del turno, `ATRASADO` si es posterior).
 - **Salida**: mismo flujo (ubicación + foto IMAGEN2) → se guarda
   `HORA SALIDA` y `ESTADO` cambia a `FIN DE JORNADA`.
+- Antes de confirmar el registro (tanto entrada como salida), el empleado
+  puede escribir una **observación** opcional (texto libre, máximo 200
+  caracteres) que se guarda en la columna `OBSERVACION` de `REGISTRO`. Si
+  se ingresa una nota al entrar y otra distinta al salir, se concatenan
+  (separadas por " / ") en vez de que la segunda borre a la primera.
 - Las fotos se guardan en una carpeta de Google Drive llamada
   `ASISTENCIA_FOTOS` (se crea sola) y el enlace se guarda en las columnas
   `IMAGEN1`/`IMAGEN2` de la hoja `REGISTRO`. El enlace queda visible para
