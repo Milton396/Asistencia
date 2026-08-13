@@ -185,6 +185,12 @@ uno sobre otro para este proyecto.
   corriendo en un navegador.
 - Ambos límites usan `CacheService`, así que se reinician solos si el
   script se vuelve a desplegar.
+- **Escape de HTML**: todos los datos que vienen de la hoja de cálculo
+  (nombre, cargo, correo, usuario) pasan por `Utils.escapeHtml` antes de
+  insertarse en el DOM (tablas de Empleados/Usuarios/Informe, ficha del
+  kiosco). Sin esto, un valor con HTML/JS incrustado se ejecutaría en el
+  navegador de quien viera esa pantalla — incluido el kiosco público, que
+  no requiere login.
 
 ## Precisión GPS y el radio permitido
 
