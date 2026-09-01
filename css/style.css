@@ -203,7 +203,7 @@ video, img#foto-preview {
 }
 .chip-x { border: none; background: none; cursor: pointer; font-weight: 700; color: var(--rojo); }
 
-.fila-inline { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.fila-inline { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
 .fila-inline input { margin-bottom: 0; }
 .fila-inline label { margin: 0; white-space: nowrap; }
 

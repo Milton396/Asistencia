@@ -79,7 +79,7 @@ function doPost(e) {
         break;
       case 'informe':
         requireAdmin(body.token);
-        data = generarInforme(body.fecha);
+        data = generarInforme(body.fechaDesde, body.fechaHasta);
         break;
       case 'usuarios':
         requireAdmin(body.token);
@@ -886,38 +886,68 @@ function registrarSalida(body) {
 
 // ==================== INFORME ====================
 
-function generarInforme(fecha) {
-  fecha = fecha || hoy();
-  var empleados = listarEmpleados();
+// Suma/resta días a una fecha 'yyyy-MM-dd' sin salirse de TIMEZONE.
+function sumarDias(fechaStr, dias) {
+  var partes = fechaStr.split('-');
+  var d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+  d.setDate(d.getDate() + dias);
+  return Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd');
+}
+
+function generarInforme(fechaDesde, fechaHasta) {
+  var hoyStr = hoy();
   var sh = getSheet(SHEET_REGISTRO);
   var values = sh.getDataRange().getValues();
-  var registrosDelDia = {};
-  for (var i = 1; i < values.length; i++) {
-    if (formatoHora(values[i][4], 'yyyy-MM-dd') === fecha) {
-      registrosDelDia[String(values[i][0])] = {
-        horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'),
-        horaSalida: formatoHora(values[i][7], 'HH:mm:ss'),
-        estadoIngreso: values[i][10],
-        estadoSalida: values[i][11]
-      };
+
+  if (!fechaDesde && !fechaHasta) {
+    fechaDesde = fechaHasta = hoyStr;
+  } else if (!fechaHasta) {
+    fechaHasta = hoyStr;
+  } else if (!fechaDesde) {
+    // Sin límite inferior explícito: se usa la fecha del registro más antiguo.
+    fechaDesde = fechaHasta;
+    for (var j = 1; j < values.length; j++) {
+      var f = formatoHora(values[j][4], 'yyyy-MM-dd');
+      if (f && f < fechaDesde) fechaDesde = f;
     }
+  }
+  if (fechaHasta > hoyStr) fechaHasta = hoyStr;
+  if (fechaDesde > fechaHasta) fechaDesde = fechaHasta;
+
+  var empleados = listarEmpleados();
+
+  // Agrupa los registros de la hoja por fecha y código de empleado.
+  var registrosPorFecha = {};
+  for (var i = 1; i < values.length; i++) {
+    var fechaFila = formatoHora(values[i][4], 'yyyy-MM-dd');
+    if (fechaFila < fechaDesde || fechaFila > fechaHasta) continue;
+    if (!registrosPorFecha[fechaFila]) registrosPorFecha[fechaFila] = {};
+    registrosPorFecha[fechaFila][String(values[i][0])] = {
+      horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'),
+      horaSalida: formatoHora(values[i][7], 'HH:mm:ss'),
+      estadoIngreso: values[i][10],
+      estadoSalida: values[i][11]
+    };
   }
 
   var registrados = [];
   var noRegistrados = [];
-  empleados.forEach(function (emp) {
-    var reg = registrosDelDia[emp.codigo];
-    if (reg && reg.horaIngreso) {
-      registrados.push({
-        codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
-        horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '',
-        estadoIngreso: reg.estadoIngreso, estadoSalida: reg.estadoSalida || '',
-        horasExtras: calcularHorasExtras(fecha, emp.turno, reg.horaIngreso, reg.horaSalida)
-      });
-    } else {
-      noRegistrados.push({ codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
-    }
-  });
+  for (var fecha = fechaDesde; fecha <= fechaHasta; fecha = sumarDias(fecha, 1)) {
+    var registrosDelDia = registrosPorFecha[fecha] || {};
+    empleados.forEach(function (emp) {
+      var reg = registrosDelDia[emp.codigo];
+      if (reg && reg.horaIngreso) {
+        registrados.push({
+          fecha: fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
+          horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '',
+          estadoIngreso: reg.estadoIngreso, estadoSalida: reg.estadoSalida || '',
+          horasExtras: calcularHorasExtras(fecha, emp.turno, reg.horaIngreso, reg.horaSalida)
+        });
+      } else {
+        noRegistrados.push({ fecha: fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
+      }
+    });
+  }
 
-  return { fecha: fecha, registrados: registrados, noRegistrados: noRegistrados };
+  return { fechaDesde: fechaDesde, fechaHasta: fechaHasta, registrados: registrados, noRegistrados: noRegistrados };
 }

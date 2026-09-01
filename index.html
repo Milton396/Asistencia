@@ -133,8 +133,10 @@
 
   <section id="panel-informe" class="tab-panel hidden">
     <div class="fila-inline">
-      <label for="input-informe-fecha">Fecha</label>
-      <input id="input-informe-fecha" type="date">
+      <label for="input-informe-fecha-desde">Fecha desde</label>
+      <input id="input-informe-fecha-desde" type="date">
+      <label for="input-informe-fecha-hasta">Fecha hasta</label>
+      <input id="input-informe-fecha-hasta" type="date">
       <button id="btn-generar-informe" class="btn-primary">Generar informe</button>
       <button id="btn-exportar-excel" class="btn-secondary">Exportar a Excel</button>
     </div>
@@ -152,12 +154,12 @@
     </div>
     <h3>Registrados</h3>
     <table id="tabla-registrados" class="tabla">
-      <thead><tr><th>Código</th><th>Nombre</th><th>Turno</th><th>Hora ingreso</th><th>Hora salida</th><th>Estado ingreso</th><th>Estado salida</th><th>Horas extras</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Código</th><th>Nombre</th><th>Turno</th><th>Hora ingreso</th><th>Hora salida</th><th>Estado ingreso</th><th>Estado salida</th><th>Horas extras</th></tr></thead>
       <tbody></tbody>
     </table>
     <h3>No registrados</h3>
     <table id="tabla-no-registrados" class="tabla">
-      <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th></tr></thead>
       <tbody></tbody>
     </table>
   </section>

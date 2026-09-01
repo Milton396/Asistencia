@@ -127,9 +127,14 @@ uno sobre otro para este proyecto.
   tiene sesión de **administrador**, se abre automáticamente el informe
   del día (registrados / no registrados).
 - El informe también se puede generar en cualquier momento desde
-  Administración → pestaña **Informe**, eligiendo la fecha, filtrando por
-  nombre/código/estado, y exportarse a Excel (.xlsx) con dos hojas:
-  Registrados y No registrados (respeta el filtro aplicado).
+  Administración → pestaña **Informe**, eligiendo un rango de fechas
+  (**Fecha desde** / **Fecha hasta**, ambas opcionales e independientes:
+  si se deja "hasta" vacía se usa hoy, si se deja "desde" vacía se usa la
+  fecha del registro más antiguo, y si se dejan ambas vacías se informa
+  solo el día de hoy), filtrando por nombre/código/estado, y exportarse a
+  Excel (.xlsx) con dos hojas: Registrados y No registrados (respeta el
+  filtro aplicado). Cada fila incluye su fecha para poder identificar a
+  qué día del rango corresponde.
 - La tabla de **Registrados** incluye **Horas extras** (formato `H:MM`).
   Entre semana empieza a contar 9h01s después del inicio del turno
   asignado (ej. turno 07:00 → desde las 16:00:01); sábado y domingo

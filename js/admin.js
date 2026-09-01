@@ -33,8 +33,10 @@ const Admin = (() => {
     el('btn-usar-ubicacion-actual').addEventListener('click', usarUbicacionActual);
     el('btn-guardar-ubicacion').addEventListener('click', guardarUbicacion);
 
-    el('input-informe-fecha').value = Utils.hoyISO();
-    el('btn-generar-informe').addEventListener('click', () => generarInforme(el('input-informe-fecha').value));
+    el('input-informe-fecha-desde').value = Utils.hoyISO();
+    el('input-informe-fecha-hasta').value = Utils.hoyISO();
+    el('btn-generar-informe').addEventListener('click', () =>
+      generarInforme(el('input-informe-fecha-desde').value, el('input-informe-fecha-hasta').value));
     el('btn-exportar-excel').addEventListener('click', exportarExcel);
     el('input-informe-buscar').addEventListener('input', renderInformeFiltrado);
     el('select-informe-estado').addEventListener('change', renderInformeFiltrado);
@@ -299,9 +301,11 @@ const Admin = (() => {
 
   // ---------- INFORME ----------
 
-  async function generarInforme(fecha) {
+  async function generarInforme(fechaDesde, fechaHasta) {
     try {
-      ultimoInforme = await Api.post('informe', { token: Auth.token(), fecha });
+      ultimoInforme = await Api.post('informe', { token: Auth.token(), fechaDesde, fechaHasta });
+      el('input-informe-fecha-desde').value = ultimoInforme.fechaDesde;
+      el('input-informe-fecha-hasta').value = ultimoInforme.fechaHasta;
       el('input-informe-buscar').value = '';
       el('select-informe-estado').value = '';
       renderInformeFiltrado();
@@ -326,15 +330,18 @@ const Admin = (() => {
     if (!ultimoInforme) return;
     const { registrados, noRegistrados } = informeFiltrado();
 
+    const rangoTexto = ultimoInforme.fechaDesde === ultimoInforme.fechaHasta
+      ? `Fecha ${ultimoInforme.fechaDesde}`
+      : `Del ${ultimoInforme.fechaDesde} al ${ultimoInforme.fechaHasta}`;
     el('resumen-informe').textContent =
-      `Fecha ${ultimoInforme.fecha} — Registrados: ${ultimoInforme.registrados.length} · No registrados: ${ultimoInforme.noRegistrados.length}`;
+      `${rangoTexto} — Registrados: ${ultimoInforme.registrados.length} · No registrados: ${ultimoInforme.noRegistrados.length}`;
 
     el('tabla-registrados').querySelector('tbody').innerHTML = registrados.map((r) => `
-      <tr><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td><td>${Utils.escapeHtml(r.horaIngreso)}</td><td>${Utils.escapeHtml(r.horaSalida || '-')}</td><td>${Utils.escapeHtml(r.estadoIngreso)}</td><td>${Utils.escapeHtml(r.estadoSalida || '-')}</td><td>${Utils.escapeHtml(r.horasExtras || '-')}</td></tr>
+      <tr><td>${Utils.escapeHtml(r.fecha)}</td><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td><td>${Utils.escapeHtml(r.horaIngreso)}</td><td>${Utils.escapeHtml(r.horaSalida || '-')}</td><td>${Utils.escapeHtml(r.estadoIngreso)}</td><td>${Utils.escapeHtml(r.estadoSalida || '-')}</td><td>${Utils.escapeHtml(r.horasExtras || '-')}</td></tr>
     `).join('');
 
     el('tabla-no-registrados').querySelector('tbody').innerHTML = noRegistrados.map((r) => `
-      <tr><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(r.cargo || '')}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td></tr>
+      <tr><td>${Utils.escapeHtml(r.fecha)}</td><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(r.cargo || '')}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td></tr>
     `).join('');
   }
 
@@ -346,17 +353,20 @@ const Admin = (() => {
     const { registrados, noRegistrados } = informeFiltrado();
     const wb = XLSX.utils.book_new();
     const hojaReg = XLSX.utils.json_to_sheet(registrados.map((r) => ({
-      CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno),
+      FECHA: r.fecha, CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno),
       'HORA INGRESO': r.horaIngreso, 'HORA SALIDA': r.horaSalida,
       'ESTADO INGRESO': r.estadoIngreso, 'ESTADO SALIDA': r.estadoSalida || '',
       'HORAS EXTRAS': r.horasExtras || '-'
     })));
     const hojaNoReg = XLSX.utils.json_to_sheet(noRegistrados.map((r) => ({
-      CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno)
+      FECHA: r.fecha, CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno)
     })));
     XLSX.utils.book_append_sheet(wb, hojaReg, 'Registrados');
     XLSX.utils.book_append_sheet(wb, hojaNoReg, 'No registrados');
-    XLSX.writeFile(wb, `informe_asistencia_${ultimoInforme.fecha}.xlsx`);
+    const sufijo = ultimoInforme.fechaDesde === ultimoInforme.fechaHasta
+      ? ultimoInforme.fechaDesde
+      : `${ultimoInforme.fechaDesde}_a_${ultimoInforme.fechaHasta}`;
+    XLSX.writeFile(wb, `informe_asistencia_${sufijo}.xlsx`);
   }
 
   // ---------- USUARIOS ----------
@@ -451,7 +461,7 @@ const Admin = (() => {
     }
     mostrarVistaAdmin();
     cambiarTab('informe');
-    generarInforme(Utils.hoyISO());
+    generarInforme(Utils.hoyISO(), Utils.hoyISO());
   }
 
   return { init, mostrarVistaAdmin, notificarUltimoTurno };
