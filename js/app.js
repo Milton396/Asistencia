@@ -126,7 +126,8 @@ const Kiosko = (() => {
       estadoEl.className = dentro ? 'ok' : 'error';
       estadoEl.innerHTML = dentro
         ? `✅ Dentro del rango permitido (distancia: ${distancia.toFixed(1)} m)`
-        : `❌ Fuera del rango permitido. Distancia: ${distancia.toFixed(1)} m (máx ${config.radio} m)`;
+        : `❌ Fuera del rango permitido. Distancia: ${distancia.toFixed(1)} m ` +
+          `(máx ${radioEfectivo.toFixed(1)} m: radio ${config.radio} m + margen GPS ${margen.toFixed(0)} m)`;
       if (margen > 0) {
         estadoEl.innerHTML += `<br><small>Precisión GPS del dispositivo: ±${ubicacion.accuracy.toFixed(0)} m (se considera al validar, hasta ±${MARGEN_PRECISION_MAX} m). En espacios cerrados la precisión puede ser menor.</small>`;
       }

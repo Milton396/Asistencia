@@ -539,7 +539,8 @@ function validarUbicacion(lat, lng, accuracy) {
   var margen = Math.min(Number(accuracy) || 0, MARGEN_PRECISION_MAX);
   var radioEfectivo = radio + margen;
   if (distancia > radioEfectivo) {
-    throw new Error('Fuera de la ubicación permitida. Distancia: ' + distancia.toFixed(1) + ' m (máx ' + radio + ' m)');
+    throw new Error('Fuera de la ubicación permitida. Distancia: ' + distancia.toFixed(1) +
+      ' m (máx ' + radioEfectivo.toFixed(1) + ' m: radio ' + radio + ' m + margen GPS ' + margen.toFixed(0) + ' m)');
   }
   return distancia;
 }
