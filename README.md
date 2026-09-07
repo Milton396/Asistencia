@@ -21,8 +21,7 @@ pide usuario y contraseña (cuentas en la hoja **USUARIOS**, se crea sola).
    - Ejecutar como: **Yo (tu cuenta)**.
    - Quién tiene acceso: **Cualquier usuario**.
 6. Clic en **Implementar** y autoriza los permisos que pida (acceso a la
-   hoja, a Drive para guardar las fotos, y a enviar correo para las
-   notificaciones de horas extra).
+   hoja y a Drive para guardar las fotos).
 7. Copia la **URL de la aplicación web** (termina en `/exec`).
 
 La primera vez que el script se ejecuta, crea automáticamente:
@@ -142,17 +141,13 @@ uno sobre otro para este proyecto.
   hora más cercano (<30 min → 0, 30-44 min → 30 min, 45-59 min → hora
   completa, repitiéndose por cada hora). Si aún no hay hora de salida
   registrada, se muestra "-".
-- Si el empleado generó horas extra ese día y tiene un **correo**
-  cargado en su ficha (pestaña Empleados, campo opcional), al registrar
-  la salida se le envía automáticamente un correo de confirmación con el
-  detalle (turno, hora de ingreso/salida, horas extra). Se envía con
-  `MailApp` desde la cuenta de Google dueña del script — no requiere
-  configuración adicional, pero sí que autorices el permiso de correo la
-  próxima vez que despliegues (ver siguiente sección). Si el envío falla
-  por cualquier motivo, el registro de salida igual se guarda con
-  normalidad. Cada envío va con copia (CC) fija a
-  `mguanulema@telconet.ec` (constante `CORREO_COPIA_HORAS_EXTRA` en
-  `Code.gs`, editable ahí si cambia el destinatario).
+- No se envían correos de confirmación de horas extra: se evaluó, pero
+  el dominio `telconet.ec` no está en Google Workspace y su registro
+  SPF tiene `-all` (hard fail) sin incluir a Google entre los
+  remitentes autorizados, por lo que cualquier correo enviado "como"
+  `@telconet.ec` desde `MailApp`/`GmailApp` llegaría rechazado o como
+  spam. Las horas extra se siguen calculando y mostrando normalmente en
+  el registro de salida y en el informe.
 
 ## Concurrencia y rendimiento
 
