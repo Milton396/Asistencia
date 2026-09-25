@@ -1,3 +1,7 @@
 .claude/
 .DS_Store
 Thumbs.db
+.env
+.env.*
+supabase/.env
+SUPABASE ASISTENCIA.txt
