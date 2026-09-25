@@ -26,10 +26,14 @@ create table empleados (
 
 -- ---------- REGISTRO (antes: hoja REGISTRO) ----------
 -- Un registro por empleado y día (ingreso + salida en la misma fila,
--- igual que en la Sheet actual).
+-- igual que en la Sheet actual). "turno" es una foto del turno del
+-- empleado al momento del ingreso (Code.gs lo copia así); se guarda
+-- como texto, no como time, porque en la data real aparece también el
+-- valor "VACACIONES" en vez de una hora.
 create table registro (
   id              bigint generated always as identity primary key,
   codigo          text not null references empleados(codigo),
+  turno           text,
   fecha           date not null,
   hora_ingreso    time,
   imagen1_url     text,
