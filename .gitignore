@@ -5,3 +5,4 @@ Thumbs.db
 .env.*
 supabase/.env
 SUPABASE ASISTENCIA.txt
+supabase/data/

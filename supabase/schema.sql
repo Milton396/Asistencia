@@ -10,13 +10,17 @@
 -- → Run, en el proyecto de PRUEBA (no en producción).
 -- ============================================================
 
--- ---------- EMPLEADOS (antes: hoja EMPLEADOS) ----------
+-- ---------- EMPLEADOS (antes: hoja EMPLEADOS + hoja HORARIOS) ----------
+-- "proceso" viene de la hoja HORARIOS (columna PROCESO), que identifica
+-- al empleado por NOMBRE en vez de CODIGO; se empareja por nombre al
+-- migrar los datos (ver supabase/data/, no versionado en git).
 create table empleados (
   codigo      text primary key,
   nombre      text not null,
   cargo       text,
   turno       time not null,
   correo      text,
+  proceso     text,
   created_at  timestamptz not null default now()
 );
 
