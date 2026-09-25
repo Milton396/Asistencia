@@ -8,6 +8,9 @@ var SHEET_REGISTRO = 'REGISTRO';
 var SHEET_EMPLEADOS = 'EMPLEADOS';
 var SHEET_CONFIG = 'CONFIG';
 var SHEET_USUARIOS = 'USUARIOS';
+var SHEET_EXTERNOS = 'EXTERNOS';
+var SHEET_REGISTRO_EXTERNOS = 'REGISTRO_EXTERNOS';
+var MOTIVOS_EXTERNOS = ['RETIRO PEDIDO/DEVOLUCION', 'ENTREGA OC', 'TRANSPORTE MATERIAL', 'VISITA'];
 var TIMEZONE = 'America/Guayaquil';
 var FOLDER_NAME = 'ASISTENCIA_FOTOS';
 var TOKEN_DURACION_MS = 8 * 60 * 60 * 1000; // 8 horas
@@ -29,8 +32,17 @@ function doGet(e) {
       case 'empleados':
         data = listarEmpleados();
         break;
+      case 'empleadosHoy':
+        data = listarRegistroEmpleadosHoy();
+        break;
       case 'config':
         data = obtenerConfigPublica();
+        break;
+      case 'externoBuscar':
+        data = buscarExterno(e.parameter.cedula);
+        break;
+      case 'externosHoy':
+        data = listarRegistroExternosHoy();
         break;
       default:
         throw new Error('Acción GET no reconocida: ' + action);
@@ -55,6 +67,12 @@ function doPost(e) {
         break;
       case 'registrarSalida':
         data = conBloqueo(function () { return registrarSalida(body); });
+        break;
+      case 'externoRegistrarIngreso':
+        data = conBloqueo(function () { return externoRegistrarIngreso(body); });
+        break;
+      case 'externoRegistrarSalida':
+        data = conBloqueo(function () { return externoRegistrarSalida(body); });
         break;
       case 'empleadoGuardar':
         requireAdmin(body.token);
@@ -640,6 +658,14 @@ function buscarFilaRegistro(codigo, fecha) {
   return null;
 }
 
+// Lista pública (sin login, para mostrarse en la propia pantalla del
+// kiosco) de los registrados y no registrados de Empleados del día.
+// Reutiliza generarInforme (misma lógica que el informe de Administración)
+// pidiendo un rango de un solo día: hoy.
+function listarRegistroEmpleadosHoy() {
+  return generarInforme(hoy(), hoy());
+}
+
 function calcularEstadoIngreso(horaStr, turnoStr) {
   var horaTurno = turnoStr.length === 5 ? turnoStr + ':00' : turnoStr;
   return horaStr <= horaTurno ? 'A TIEMPO' : 'ATRASADO';
@@ -805,6 +831,204 @@ function registrarSalida(body) {
   };
 }
 
+// ==================== EXTERNOS (otros departamentos, proveedores, visitantes) ====================
+// Autoregistro libre por cédula: a diferencia de EMPLEADOS, nadie los
+// pre-registra. La primera vez que alguien usa una cédula se guardan su
+// nombre y departamento/proveedor en la hoja EXTERNOS (maestro, 1 fila por
+// cédula); las siguientes veces se reutilizan esos datos. El motivo de la
+// visita, en cambio, no se guarda en el maestro porque cambia en cada
+// ingreso.
+
+function ensureExternosSheet() {
+  var ss = getSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_EXTERNOS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_EXTERNOS);
+    sh.appendRow(['CEDULA', 'NOMBRE', 'DEPARTAMENTO_PROVEEDOR']);
+  }
+  return sh;
+}
+
+function ensureRegistroExternosSheet() {
+  var ss = getSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_REGISTRO_EXTERNOS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_REGISTRO_EXTERNOS);
+    sh.appendRow(['CEDULA', 'NOMBRE', 'DEPARTAMENTO_PROVEEDOR', 'MOTIVO', 'FECHA', 'HORA INGRESO', 'IMAGEN1', 'HORA SALIDA', 'IMAGEN2', 'OBSERVACION']);
+  }
+  return sh;
+}
+
+// Valida formato (10 dígitos), código de provincia, tipo de persona y
+// dígito verificador de una cédula ecuatoriana. Espejo de
+// Utils.validarCedulaEcuatoriana en js/utils.js (esa copia solo da feedback
+// rápido en el cliente; esta es la que de verdad decide).
+function validarCedulaEcuatoriana(cedula) {
+  cedula = String(cedula || '').trim();
+  if (!/^\d{10}$/.test(cedula)) return false;
+  var provincia = Number(cedula.substring(0, 2));
+  if (provincia < 1 || provincia > 24) return false;
+  var tercerDigito = Number(cedula.charAt(2));
+  if (tercerDigito > 5) return false;
+  var coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+  var suma = 0;
+  for (var i = 0; i < 9; i++) {
+    var producto = Number(cedula.charAt(i)) * coeficientes[i];
+    if (producto >= 10) producto -= 9;
+    suma += producto;
+  }
+  var digitoVerificador = (10 - (suma % 10)) % 10;
+  return digitoVerificador === Number(cedula.charAt(9));
+}
+
+function buscarExterno(cedula) {
+  cedula = String(cedula || '').trim();
+  if (!cedula) return null;
+  var sh = ensureExternosSheet();
+  var values = sh.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === cedula) {
+      return { cedula: cedula, nombre: values[i][1], departamento: values[i][2] };
+    }
+  }
+  return null;
+}
+
+// Crea o actualiza la fila maestra de la cédula (upsert): si ya existía con
+// otro nombre/departamento, se sobrescribe con lo último ingresado.
+function guardarExterno(cedula, nombre, departamento) {
+  var sh = ensureExternosSheet();
+  var values = sh.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === cedula) {
+      sh.getRange(i + 1, 2, 1, 2).setValues([[nombre, departamento]]);
+      return;
+    }
+  }
+  var fila = sh.getLastRow() + 1;
+  sh.getRange(fila, 1).setNumberFormat('@'); // CEDULA: evita que Sheets pierda el 0 inicial al tratarlo como número
+  sh.getRange(fila, 1, 1, 3).setValues([[cedula, nombre, departamento]]);
+}
+
+function formatearColumnasTextoExternos(sh, fila) {
+  sh.getRange(fila, 1).setNumberFormat('@'); // CEDULA
+  sh.getRange(fila, 5).setNumberFormat('@'); // FECHA
+  sh.getRange(fila, 6).setNumberFormat('@'); // HORA INGRESO
+  sh.getRange(fila, 8).setNumberFormat('@'); // HORA SALIDA
+}
+
+function buscarFilaRegistroExterno(cedula, fecha) {
+  var sh = ensureRegistroExternosSheet();
+  var values = sh.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    var filaFecha = formatoHora(values[i][4], 'yyyy-MM-dd');
+    if (String(values[i][0]) === String(cedula) && filaFecha === fecha) {
+      return {
+        rowIndex: i + 1,
+        cedula: values[i][0], nombre: values[i][1], departamento: values[i][2], motivo: values[i][3],
+        fecha: filaFecha,
+        horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'), imagen1: values[i][6],
+        horaSalida: formatoHora(values[i][7], 'HH:mm:ss'), imagen2: values[i][8],
+        observacion: values[i][9]
+      };
+    }
+  }
+  return null;
+}
+
+// Lista pública (sin login, para mostrarse en la propia pantalla del
+// kiosco) de los registros de Externos del día. Los más recientes primero.
+function listarRegistroExternosHoy() {
+  var fecha = hoy();
+  var sh = ensureRegistroExternosSheet();
+  var values = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var filaFecha = formatoHora(values[i][4], 'yyyy-MM-dd');
+    if (filaFecha !== fecha) continue;
+    out.push({
+      cedula: values[i][0],
+      nombre: values[i][1],
+      departamento: values[i][2],
+      motivo: values[i][3],
+      horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'),
+      horaSalida: formatoHora(values[i][7], 'HH:mm:ss'),
+      observacion: values[i][9]
+    });
+  }
+  out.reverse();
+  return out;
+}
+
+// A diferencia de Empleados, aquí no se valida ubicación GPS (se asume que
+// el registro ocurre siempre en recepción, frente al dispositivo).
+function externoRegistrarIngreso(body) {
+  verificarLimiteKiosco();
+  var cedula = String(body.cedula || '').trim();
+  if (!validarCedulaEcuatoriana(cedula)) throw new Error('Cédula inválida');
+  var nombre = String(body.nombre || '').trim();
+  var departamento = String(body.departamento || '').trim();
+  if (!nombre) throw new Error('El nombre es obligatorio');
+  if (!departamento) throw new Error('El departamento o proveedor es obligatorio');
+  var motivo = String(body.motivo || '').trim();
+  if (MOTIVOS_EXTERNOS.indexOf(motivo) === -1) throw new Error('Motivo de ingreso inválido');
+
+  var fecha = hoy();
+  var existente = buscarFilaRegistroExterno(cedula, fecha);
+  if (existente && existente.horaIngreso) {
+    throw new Error('Ya se registró el ingreso de hoy para ' + nombre);
+  }
+
+  guardarExterno(cedula, nombre, departamento);
+
+  var hora = horaActual();
+  var urlFoto = guardarFoto(body.imagenBase64, 'INGRESO_EXT', cedula);
+
+  var sh = ensureRegistroExternosSheet();
+  var filaDestino = existente ? existente.rowIndex : sh.getLastRow() + 1;
+  formatearColumnasTextoExternos(sh, filaDestino);
+  sh.getRange(filaDestino, 1, 1, 10).setValues([[
+    cedula, nombre, departamento, motivo, fecha, hora, urlFoto,
+    existente ? (existente.horaSalida || '') : '',
+    existente ? (existente.imagen2 || '') : '',
+    combinarObservacion(existente ? existente.observacion : '', body.observacion)
+  ]]);
+
+  return {
+    nombre: nombre, departamento: departamento, hora: hora,
+    estado: 'INGRESO REGISTRADO'
+  };
+}
+
+// Sin ubicación (igual que el ingreso) y sin foto: la foto de un externo se
+// toma una sola vez, al ingresar; en la salida solo se registra la hora.
+function externoRegistrarSalida(body) {
+  verificarLimiteKiosco();
+  var cedula = String(body.cedula || '').trim();
+  if (!validarCedulaEcuatoriana(cedula)) throw new Error('Cédula inválida');
+
+  var fecha = hoy();
+  var existente = buscarFilaRegistroExterno(cedula, fecha);
+  if (!existente || !existente.horaIngreso) {
+    throw new Error('Debe registrar el ingreso antes de la salida');
+  }
+  if (existente.horaSalida) {
+    throw new Error('Ya se registró la salida de hoy para ' + existente.nombre);
+  }
+
+  var hora = horaActual();
+
+  var sh = ensureRegistroExternosSheet();
+  formatearColumnasTextoExternos(sh, existente.rowIndex);
+  sh.getRange(existente.rowIndex, 8, 1, 1).setValue(hora);          // HORA SALIDA
+  sh.getRange(existente.rowIndex, 10, 1, 1).setValue(combinarObservacion(existente.observacion, body.observacion)); // OBSERVACION
+
+  return {
+    nombre: existente.nombre, departamento: existente.departamento, hora: hora,
+    estado: 'SALIDA REGISTRADA'
+  };
+}
+
 // ==================== INFORME ====================
 
 // Suma/resta días a una fecha 'yyyy-MM-dd' sin salirse de TIMEZONE.
@@ -846,6 +1070,7 @@ function generarInforme(fechaDesde, fechaHasta) {
     registrosPorFecha[fechaFila][String(values[i][0])] = {
       horaIngreso: formatoHora(values[i][5], 'HH:mm:ss'),
       horaSalida: formatoHora(values[i][7], 'HH:mm:ss'),
+      observacion: values[i][9],
       estadoIngreso: values[i][10],
       estadoSalida: values[i][11]
     };
@@ -862,6 +1087,7 @@ function generarInforme(fechaDesde, fechaHasta) {
           fecha: fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
           horaIngreso: reg.horaIngreso, horaSalida: reg.horaSalida || '',
           estadoIngreso: reg.estadoIngreso, estadoSalida: reg.estadoSalida || '',
+          observacion: reg.observacion || '',
           horasExtras: calcularHorasExtras(fecha, emp.turno, reg.horaIngreso, reg.horaSalida)
         });
       } else {

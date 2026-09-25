@@ -32,18 +32,96 @@
 
 <!-- ===================== VISTA KIOSKO ===================== -->
 <main id="vista-kiosko" class="container">
-  <div class="modo-selector">
+  <div class="tabs">
+    <button id="btn-kiosko-empleados" class="kiosko-tab-btn active">Empleados</button>
+    <button id="btn-kiosko-externos" class="kiosko-tab-btn">Externos</button>
+    <button id="btn-kiosko-registro" class="kiosko-tab-btn">Registro</button>
+  </div>
+
+  <div id="modo-selector" class="modo-selector">
     <button id="btn-modo-ingreso" class="modo-btn active">Entrada</button>
     <button id="btn-modo-salida" class="modo-btn">Salida</button>
   </div>
 
-  <div class="paso">
+  <div id="panel-kiosko-empleados" class="paso">
     <label for="input-codigo">Código de empleado</label>
     <div class="buscador-codigo">
       <input id="input-codigo" type="text" inputmode="numeric" placeholder="Ingrese su código y presione Enter" autofocus>
       <button id="btn-buscar-codigo" class="btn-secondary">Buscar</button>
     </div>
     <div id="empleado-card" class="empleado-card hidden"></div>
+  </div>
+
+  <div id="panel-kiosko-externos" class="paso hidden">
+    <label for="input-cedula">Cédula</label>
+    <div class="buscador-codigo">
+      <input id="input-cedula" type="text" inputmode="numeric" maxlength="10" placeholder="Ingrese su cédula y presione Enter">
+      <button id="btn-buscar-cedula" class="btn-secondary">Buscar</button>
+    </div>
+    <div id="externo-card" class="empleado-card hidden"></div>
+    <div id="externo-form" class="hidden">
+      <div id="externo-campos-nuevo" class="hidden">
+        <label for="input-externo-nombre">Nombre completo</label>
+        <input id="input-externo-nombre" type="text" placeholder="Nombre completo">
+        <label for="input-externo-departamento">Departamento o proveedor</label>
+        <input id="input-externo-departamento" type="text" placeholder="Ej. Sistemas, Proveedor XYZ">
+      </div>
+      <div id="campo-externo-motivo">
+        <label for="select-externo-motivo">Motivo de ingreso</label>
+        <select id="select-externo-motivo">
+          <option value="">Seleccione un motivo...</option>
+          <option value="RETIRO PEDIDO/DEVOLUCION">Retiro pedido / devolución</option>
+          <option value="ENTREGA OC">Entrega OC</option>
+          <option value="TRANSPORTE MATERIAL">Transporte material</option>
+          <option value="VISITA">Visita</option>
+        </select>
+      </div>
+      <div class="botones">
+        <button id="btn-externo-continuar" class="btn-primary" disabled>Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-kiosko-registro" class="paso registro-dia hidden">
+    <h3>Empleados</h3>
+    <details id="detalle-empleados-registrados" class="paso">
+      <summary>Registrados <strong id="conteo-empleados-registrados">0</strong></summary>
+      <div class="tabla-scroll">
+        <table id="tabla-registro-empleados" class="tabla">
+          <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th><th>Hora ingreso</th><th>Hora salida</th><th>Estado ingreso</th><th>Estado salida</th><th>Observación</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+    <details id="detalle-empleados-no-registrados" class="paso">
+      <summary>No registrados <strong id="conteo-empleados-no-registrados">0</strong></summary>
+      <div class="tabla-scroll">
+        <table id="tabla-no-registrado-empleados" class="tabla">
+          <thead><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Turno</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <h3>Externos</h3>
+    <details id="detalle-externos-en-bodega" class="paso">
+      <summary>En Bodega <strong id="conteo-externos-en-bodega">0</strong></summary>
+      <div class="tabla-scroll">
+        <table id="tabla-externos-en-bodega" class="tabla">
+          <thead><tr><th>Cédula</th><th>Nombre</th><th>Departamento</th><th>Motivo de ingreso</th><th>Hora ingreso</th><th>Hora salida</th><th>Observación</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+    <details id="detalle-externos-salieron" class="paso">
+      <summary>Salieron <strong id="conteo-externos-salieron">0</strong></summary>
+      <div class="tabla-scroll">
+        <table id="tabla-externos-salieron" class="tabla">
+          <thead><tr><th>Cédula</th><th>Nombre</th><th>Departamento</th><th>Motivo de ingreso</th><th>Hora ingreso</th><th>Hora salida</th><th>Observación</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
   </div>
 
   <div id="paso-observacion" class="paso hidden">

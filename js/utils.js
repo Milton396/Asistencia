@@ -137,6 +137,28 @@ const Utils = (() => {
     }[c]));
   }
 
+  // Valida el formato y el dígito verificador de una cédula ecuatoriana
+  // (10 dígitos). Espejo de validarCedulaEcuatoriana en apps-script/Code.gs:
+  // se valida también aquí para dar feedback inmediato sin ida y vuelta al
+  // servidor, pero el backend revalida igual (nunca confiar solo en el cliente).
+  function validarCedulaEcuatoriana(cedula) {
+    cedula = String(cedula || '').trim();
+    if (!/^\d{10}$/.test(cedula)) return false;
+    const provincia = Number(cedula.substring(0, 2));
+    if (provincia < 1 || provincia > 24) return false;
+    const tercerDigito = Number(cedula.charAt(2));
+    if (tercerDigito > 5) return false;
+    const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+    let suma = 0;
+    for (let i = 0; i < 9; i++) {
+      let producto = Number(cedula.charAt(i)) * coeficientes[i];
+      if (producto >= 10) producto -= 9;
+      suma += producto;
+    }
+    const digitoVerificador = (10 - (suma % 10)) % 10;
+    return digitoVerificador === Number(cedula.charAt(9));
+  }
+
   function toast(msg, tipo = 'info', ms = 4000) {
     const cont = document.getElementById('toast-container');
     const el = document.createElement('div');
@@ -150,5 +172,5 @@ const Utils = (() => {
     }, ms);
   }
 
-  return { haversine, getUbicacionActual, hoyISO, toast, formatoHora, escapeHtml };
+  return { haversine, getUbicacionActual, hoyISO, toast, formatoHora, escapeHtml, validarCedulaEcuatoriana };
 })();

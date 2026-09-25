@@ -168,7 +168,7 @@ video, img#foto-preview {
   flex-wrap: wrap;
 }
 
-.tab-btn {
+.tab-btn, .kiosko-tab-btn {
   padding: 10px 16px;
   border: none;
   background: #e5e7eb;
@@ -176,7 +176,7 @@ video, img#foto-preview {
   cursor: pointer;
   font-weight: 600;
 }
-.tab-btn.active { background: var(--azul); color: #fff; }
+.tab-btn.active, .kiosko-tab-btn.active { background: var(--azul); color: #fff; }
 
 .tab-panel {
   background: var(--tarjeta);
@@ -190,6 +190,28 @@ video, img#foto-preview {
 .tabla { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
 .tabla th, .tabla td { padding: 8px 10px; border-bottom: 1px solid var(--borde); text-align: left; font-size: 0.9rem; }
 .tabla th { background: #f9fafb; }
+
+/* La pestaña "Registro" del kiosco se sale del ancho angosto de
+   #vista-kiosko (480px, pensado para el flujo de registro en celular) para
+   que las tablas tengan espacio y no queden apretadas. */
+.registro-dia {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90vw;
+  max-width: 900px;
+}
+.registro-dia h3 { margin: 20px 0 4px; }
+.registro-dia h3:first-child { margin-top: 0; }
+.registro-dia h4 { margin: 10px 0 4px; font-size: 0.95rem; }
+.registro-dia summary {
+  cursor: pointer;
+  font-weight: 700;
+  outline: none;
+}
+.registro-dia details table { margin-top: 12px; }
+.registro-dia .tabla-scroll { overflow-x: auto; margin-top: 8px; }
+.registro-dia .tabla { min-width: 700px; margin-bottom: 0; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .chip {

@@ -9,6 +9,37 @@ La pantalla de registro de entrada/salida es **pública** (sin login) — el
 personal marca su asistencia libremente. Solo el botón **Administración**
 pide usuario y contraseña (cuentas en la hoja **USUARIOS**, se crea sola).
 
+La pantalla de registro tiene tres pestañas:
+
+- **Empleados**: el flujo original, por código de empleado.
+- **Externos**: para personal de otros departamentos, proveedores y
+  visitantes. Se identifican por **cédula** (se valida el formato y el
+  dígito verificador). Es autoregistro libre: no hace falta que un
+  administrador los cree antes — la primera vez que alguien usa una
+  cédula se le pide nombre y departamento/proveedor, y esos datos quedan
+  guardados para la próxima vez (hoja **EXTERNOS**, se crea sola). En
+  cada ingreso se pide además el **motivo** (Retiro pedido/devolución,
+  Entrega OC, Transporte material o Visita), que no se reutiliza porque
+  cambia en cada visita. A diferencia de Empleados, **no se verifica
+  ubicación GPS** (se asume que el registro siempre ocurre en recepción,
+  frente al dispositivo), y la **foto solo se toma en el ingreso** de
+  cada visita, no en la salida. El registro de idas y vueltas se guarda
+  en la hoja **REGISTRO_EXTERNOS** (también se crea sola).
+- **Registro**: pantalla pública (sin necesidad de iniciar sesión como
+  administrador) con el estado del día actual, organizada en
+  desplegables con el total a la vista sin necesidad de expandirlos:
+  - **Empleados** → **Registrados** [N] (código, nombre, cargo, turno,
+    hora ingreso, hora salida, estado ingreso, estado salida,
+    observación) y **No registrados** [N] (código, nombre, cargo,
+    turno). Reutiliza la misma lógica del informe de Administración,
+    pidiéndolo para un solo día: hoy.
+  - **Externos** → dos desplegables (mismas columnas en ambos: cédula,
+    nombre, departamento, motivo, hora ingreso, hora salida,
+    observación), separando quién sigue en la bodega de quién ya se
+    fue: **En Bodega** [N] (registraron ingreso hoy y todavía no marcan
+    salida) y **Salieron** [N] (ya marcaron salida hoy). Ambos filtros
+    se calculan en el navegador, sin pedir nada extra al servidor.
+
 ## 1. Desplegar el backend (Apps Script)
 
 1. Abre la hoja de cálculo en Google Sheets.
