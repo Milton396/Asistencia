@@ -46,7 +46,10 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
 
 - [x] Fase 0 — Ambiente de pruebas (rama + Sheet copiada)
 - [x] Fase 1 — Esquema de tablas (`schema.sql`, proyecto Supabase creado y corrido)
-- [ ] Fase 2 — Migrar datos de la Sheet copiada a las tablas (en curso)
+- [x] Fase 2 — Migrar datos de la Sheet copiada a las tablas
+      (39 empleados, 1081 registros, config, y los 4 administradores
+      vinculados en `perfiles_admin` vía Supabase Auth: `montty`,
+      `rimbaquingo`, `mguanulema`, `wherrera`)
 - [ ] Fase 3 — Edge Functions (backend)
 - [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
 - [ ] Fase 5 — Pruebas end-to-end
@@ -54,8 +57,7 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
 
 ## Próximo paso
 
-1. En Supabase → SQL Editor, correr `migrations/0001_add_proceso_a_empleados.sql`
-   (agrega la columna `proceso` que faltaba cuando se corrió `schema.sql`).
-2. Exportar de la Sheet copiada como CSV a `supabase/data/` (no versionado):
-   `EMPLEADOS.csv`, `REGISTRO.csv`, `EXTERNOS.csv`, `REGISTRO_EXTERNOS.csv`,
-   `CONFIG.csv`, `USUARIOS.csv`, `HORARIOS.csv`.
+Fase 3: reescribir como Edge Functions las acciones de `Code.gs`
+(login, registrarIngreso/Salida, externoRegistrarIngreso/Salida,
+informe, CRUD de empleados/usuarios/config, etc.), usando la service
+role key para todas las escrituras.
