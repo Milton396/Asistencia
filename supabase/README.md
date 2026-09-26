@@ -51,9 +51,13 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       vinculados en `perfiles_admin` vía Supabase Auth: `montty`,
       `rimbaquingo`, `mguanulema`, `wherrera`)
 - [~] Fase 3 — Edge Functions (backend). Hecho: función `api` con
-      `config` y `empleados` (lecturas públicas), desplegada y probada
-      por curl (GET y POST). Falta: registrarIngreso/Salida, externos,
-      informe, CRUD admin, y el nuevo login vía Supabase Auth.
+      `config` y `empleados` (lecturas públicas); `requireAdmin()`
+      (equivalente al de Code.gs, validando el access_token de Supabase
+      Auth) y acción `perfil` (nombre/rol tras el login, ya que Supabase
+      Auth no lo devuelve solo) — probado de punta a punta con una de
+      las 4 cuentas reales. El login en sí ya no es una acción propia:
+      lo hace supabase-js directo contra Supabase Auth (Fase 4). Falta:
+      registrarIngreso/Salida, externos, informe, CRUD admin.
 - [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
 - [ ] Fase 5 — Pruebas end-to-end
 - [ ] Fase 6 — Corte a producción

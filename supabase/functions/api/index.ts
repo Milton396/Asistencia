@@ -26,6 +26,34 @@ function supabaseAdmin() {
   );
 }
 
+// ==================== AUTENTICACIÓN (equivalente a requireAdmin en Code.gs) ====================
+// El login en sí ya no pasa por aquí: lo hace supabase-js directo contra
+// Supabase Auth (Fase 4). Esta función valida el access_token de esa
+// sesión y confirma que la cuenta es administrador, antes de cualquier
+// acción protegida. Los mensajes son los mismos que ya usa Code.gs,
+// porque js/api.js cierra sesión automáticamente al ver alguno de ellos
+// (ver ERRORES_SESION en js/api.js) — no cambiar el texto sin revisar eso.
+async function requireAdmin(req: Request) {
+  const auth = req.headers.get('Authorization') || '';
+  const token = auth.replace(/^Bearer\s+/i, '').trim();
+  if (!token) throw new Error('No autorizado. Inicie sesión.');
+
+  const { data: userData, error: userError } = await supabaseAdmin().auth.getUser(token);
+  if (userError || !userData?.user) throw new Error('Sesión expirada. Vuelva a iniciar sesión.');
+
+  const { data: perfil, error: perfilError } = await supabaseAdmin()
+    .from('perfiles_admin')
+    .select('nombre, rol')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+  if (perfilError) throw new Error(perfilError.message);
+  if (!perfil || perfil.rol !== 'administrador') {
+    throw new Error('Requiere permisos de administrador.');
+  }
+
+  return { userId: userData.user.id, email: userData.user.email, nombre: perfil.nombre, rol: perfil.rol };
+}
+
 // ==================== ACCIONES PÚBLICAS (sin login) ====================
 // Equivalentes a listarEmpleados()/obtenerConfigPublica() en Code.gs.
 
@@ -86,6 +114,14 @@ Deno.serve(async (req) => {
       case 'config':
         data = await obtenerConfigPublica();
         break;
+      case 'perfil': {
+        // Con Supabase Auth, el login ya no devuelve "nombre" (eso vivía
+        // en la tabla USUARIOS). El frontend llama a esto justo después
+        // de iniciar sesión para mostrar el nombre del administrador.
+        const sesion = await requireAdmin(req);
+        data = { nombre: sesion.nombre, rol: sesion.rol, email: sesion.email };
+        break;
+      }
       default:
         throw new Error(`Acción ${req.method} no reconocida: ${action}`);
     }

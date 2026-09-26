@@ -127,6 +127,11 @@ create policy "lectura publica empleados" on empleados
 create policy "lectura publica config" on config
   for select using (true);
 
+-- Un usuario autenticado puede leer su propio perfil (nombre, rol) —
+-- lo usa el frontend después de iniciar sesión con Supabase Auth.
+create policy "cada quien lee su propio perfil" on perfiles_admin
+  for select using (auth.uid() = user_id);
+
 -- El resto de lecturas/escrituras (registro, externos, registro_externos,
 -- informes, CRUD admin) se sirven exclusivamente desde Edge Functions
 -- con la service role key — sin políticas adicionales para "anon".
