@@ -55,6 +55,32 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
 - [ ] Fase 5 — Pruebas end-to-end
 - [ ] Fase 6 — Corte a producción
 
+## CLI de Supabase
+
+Instalada como devDependency dentro de esta carpeta (no global — Supabase
+ya no lo soporta). Se usa así:
+
+```
+cd supabase
+npx supabase <comando> --workdir ..
+```
+
+**`supabase link` no funciona en este proyecto** (da `LinkAuthTokenError`
+sin importar los permisos del token, incluso siendo Owner de la
+organización — parece un problema de la plataforma con tokens de permisos
+granulares). No hace falta: todos los comandos que lo necesitarían aceptan
+`--project-ref uquodnqaxqfnyialqlkp` directo. Para desplegar funciones,
+usar también `--use-api` (empaqueta sin necesitar Docker corriendo):
+
+```
+npx supabase functions deploy <nombre> --project-ref uquodnqaxqfnyialqlkp --use-api --workdir ..
+```
+
+Requiere `SUPABASE_ACCESS_TOKEN` en el entorno (está en `supabase/.env`,
+token de acceso personal con permisos: Project Settings-Read, API
+Keys-Read, Edge Functions-Read/Write, alcance limitado al proyecto
+Asistencia).
+
 ## Próximo paso
 
 Fase 3: reescribir como Edge Functions las acciones de `Code.gs`
