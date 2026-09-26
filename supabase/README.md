@@ -50,7 +50,10 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       (39 empleados, 1081 registros, config, y los 4 administradores
       vinculados en `perfiles_admin` vía Supabase Auth: `montty`,
       `rimbaquingo`, `mguanulema`, `wherrera`)
-- [ ] Fase 3 — Edge Functions (backend)
+- [~] Fase 3 — Edge Functions (backend). Hecho: función `api` con
+      `config` y `empleados` (lecturas públicas), desplegada y probada
+      por curl (GET y POST). Falta: registrarIngreso/Salida, externos,
+      informe, CRUD admin, y el nuevo login vía Supabase Auth.
 - [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
 - [ ] Fase 5 — Pruebas end-to-end
 - [ ] Fase 6 — Corte a producción
@@ -80,6 +83,17 @@ Requiere `SUPABASE_ACCESS_TOKEN` en el entorno (está en `supabase/.env`,
 token de acceso personal con permisos: Project Settings-Read, API
 Keys-Read, Edge Functions-Read/Write, alcance limitado al proyecto
 Asistencia).
+
+## Pendiente para la Fase 4 (no olvidar)
+
+Toda llamada a una Edge Function necesita el header
+`Authorization: Bearer <anon key>` — a diferencia de Apps Script, que no
+pedía nada. `js/api.js` va a necesitar agregarlo en `get()` y `post()`.
+Para las acciones de administración, en vez de ese header fijo, se manda
+el `access_token` de la sesión de Supabase Auth del usuario logueado (la
+función valida con `supabase.auth.getUser(token)` y revisa que tenga fila
+en `perfiles_admin`, igual que `requireAdmin()` en `Code.gs` pero con
+tokens reales de Supabase en vez de uno propio).
 
 ## Próximo paso
 
