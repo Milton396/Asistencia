@@ -79,8 +79,18 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
         asistencia (FK), en vez de dejarlo huérfano en silencio como
         hacía la Sheet — encontramos un caso real así al migrar
         (código 11750).
-- [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
-- [ ] Fase 5 — Pruebas end-to-end
+- [x] Fase 4 — Frontend conectado a Supabase (`js/config.js`, `js/api.js`,
+      `js/auth.js`, `index.html` con supabase-js). Login ahora es por
+      correo (antes username corto); `Auth.token()`/`estaLogueado()`
+      siguen siendo síncronos (variable en memoria) para no tocar los
+      call sites existentes en `admin.js`/`app.js`.
+- [x] Fase 5 — Pruebas end-to-end, confirmadas en el navegador real:
+      kiosco público (buscar empleado, ubicación GPS real, pestaña
+      Registro), login/logout, informe, CRUD de empleados (incluida la
+      eliminación bloqueada por historial), Mi cuenta (cambio de
+      contraseña), flujo completo de Externos por la UI, CRUD de
+      administradores (Supabase Auth), turnos/ubicación, exportar a
+      Excel, e ingreso/salida real con foto.
 - [ ] Fase 6 — Corte a producción
 
 ## CLI de Supabase
@@ -122,6 +132,8 @@ tokens reales de Supabase en vez de uno propio).
 
 ## Próximo paso
 
-Fase 4: adaptar el frontend (`js/api.js`, `js/auth.js`, `index.html`)
-para hablar con Supabase en vez de Apps Script — ver la sección
-"Pendiente para la Fase 4" arriba.
+Fase 6: corte a producción — sincronizar los registros nuevos hechos en
+la app real (Apps Script/Sheet) desde que se copió la Sheet para la
+migración, cambiar la configuración de producción (rama `main`) para
+apuntar a Supabase, y mantener Apps Script/Sheet como respaldo por un
+tiempo antes de dar de baja.
