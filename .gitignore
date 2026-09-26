@@ -6,3 +6,5 @@ Thumbs.db
 supabase/.env
 SUPABASE ASISTENCIA.txt
 supabase/data/
+supabase/node_modules/
+supabase/.temp/
