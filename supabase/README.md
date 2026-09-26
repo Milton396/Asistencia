@@ -101,9 +101,13 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
             asistencia real (el kiosco real de los empleados corre en un
             servidor/dispositivo separado del WAMP local usado para
             probar, así que nunca hubo riesgo de contaminación cruzada).
-      - [ ] Fusionar `migracion-supabase` a `main` (o copiar los
-            archivos del frontend actualizados)
-      - [ ] Prueba rápida en producción tras el corte
+      - [x] Fusionar `migracion-supabase` a `main` (fast-forward, sin
+            conflictos) y `git push`. El kiosco real usa **GitHub Pages**
+            de este mismo repo (`https://milton396.github.io/Asistencia/`,
+            rama `main`), así que GitHub reconstruyó solo al detectar el
+            push — no hizo falta ningún paso manual de despliegue.
+      - [x] Prueba rápida en producción: confirmada en el dispositivo
+            real del kiosco (ingreso con foto/ubicación real).
       - [ ] Avisar a los 4 administradores: ahora inician sesión con
             correo, no con el username corto de antes
 
