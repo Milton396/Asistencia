@@ -100,6 +100,25 @@ create table perfiles_admin (
   rol         text not null default 'administrador'
 );
 
+-- ---------- KIOSCO_LIMITE (límite de intentos del kiosco público) ----------
+-- Reemplaza CacheService (Apps Script): una fila por ventana de tiempo
+-- (minuto), con el conteo de solicitudes.
+create table kiosco_limite (
+  ventana  bigint primary key,
+  intentos int not null default 0
+);
+alter table kiosco_limite enable row level security;
+
+create or replace function incrementar_limite_kiosco(p_ventana bigint)
+returns int
+language sql
+as $$
+  insert into kiosco_limite (ventana, intentos)
+  values (p_ventana, 1)
+  on conflict (ventana) do update set intentos = kiosco_limite.intentos + 1
+  returning intentos;
+$$;
+
 -- ============================================================
 -- Row Level Security (RLS)
 -- Política general: TODAS las tablas quedan con RLS activado y SIN

@@ -38,6 +38,11 @@ app en producción (rama `main`).
    empareja por nombre para completar `proceso`. La columna `HORARIOS` de
    esa hoja (el turno) no se migra aparte porque ya existe como
    `empleados.turno`, alimentado por la hoja EMPLEADOS real de la app.
+5. **Fotos**: bucket de Supabase Storage `fotos`, creado **público**
+   (cualquiera con el link puede verla) — mismo nivel de privacidad que
+   hoy con Google Drive (`ANYONE_WITH_LINK`). Avisar si en algún momento
+   se prefiere que las fotos queden privadas (requeriría URLs firmadas
+   en vez de públicas, y tocar cómo el frontend/informe las muestra).
 
 Si alguna de estas decisiones no es la que se quiere, avisar antes de
 avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
@@ -56,8 +61,23 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       Auth) y acción `perfil` (nombre/rol tras el login, ya que Supabase
       Auth no lo devuelve solo) — probado de punta a punta con una de
       las 4 cuentas reales. El login en sí ya no es una acción propia:
-      lo hace supabase-js directo contra Supabase Auth (Fase 4). Falta:
-      registrarIngreso/Salida, externos, informe, CRUD admin.
+      lo hace supabase-js directo contra Supabase Auth (Fase 4).
+
+      También hecho: `registrarIngreso`/`registrarSalida` (empleados) y
+      `externoBuscar`/`externoRegistrarIngreso`/`externoRegistrarSalida`
+      (externos) — con validación de ubicación GPS, límite de intentos
+      del kiosco (nueva tabla `kiosco_limite`, atómico vía
+      `incrementar_limite_kiosco()`), fotos en Supabase Storage (bucket
+      público `fotos`, reemplaza Drive), cálculo de horas extra y
+      validación de cédula ecuatoriana. Probado de punta a punta por
+      curl: ingreso, ingreso duplicado, salida, ubicación fuera de
+      rango, código inexistente, ráfaga de 35 solicitudes (el límite
+      cortó justo en la 30), y el flujo completo de externos (buscar,
+      registrar nuevo, autocompletar en la siguiente búsqueda, ingreso
+      duplicado, salida, salida duplicada).
+
+      Falta: `informe` (por rango de fechas) y CRUD de administración
+      (empleados, turnos, config, usuarios).
 - [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
 - [ ] Fase 5 — Pruebas end-to-end
 - [ ] Fase 6 — Corte a producción
