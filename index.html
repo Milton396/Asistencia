@@ -22,7 +22,10 @@
     <label for="input-admin-usuario">Correo</label>
     <input id="input-admin-usuario" type="email" placeholder="correo@ejemplo.com">
     <label for="input-admin-password">Contraseña</label>
-    <input id="input-admin-password" type="password" placeholder="Contraseña">
+    <div class="campo-password">
+      <input id="input-admin-password" type="password" placeholder="Contraseña">
+      <button type="button" class="btn-toggle-password" data-target="input-admin-password" aria-label="Mostrar contraseña">👁</button>
+    </div>
     <div class="botones">
       <button id="btn-cerrar-login" class="btn-secondary">Cancelar</button>
       <button id="btn-admin-login" class="btn-primary">Ingresar</button>
@@ -284,7 +287,10 @@
     <label for="input-usuario-nombre">Nombre</label>
     <input id="input-usuario-nombre" type="text">
     <label for="input-usuario-password">Contraseña</label>
-    <input id="input-usuario-password" type="password" placeholder="Dejar en blanco para no cambiarla">
+    <div class="campo-password">
+      <input id="input-usuario-password" type="password" placeholder="Dejar en blanco para no cambiarla">
+      <button type="button" class="btn-toggle-password" data-target="input-usuario-password" aria-label="Mostrar contraseña">👁</button>
+    </div>
     <div class="botones">
       <button id="btn-cancelar-usuario" class="btn-secondary">Cancelar</button>
       <button id="btn-guardar-usuario" class="btn-primary">Guardar</button>
@@ -297,9 +303,15 @@
   <div class="modal-content">
     <h2>Mi cuenta</h2>
     <label for="input-cuenta-nueva-password">Nueva contraseña</label>
-    <input id="input-cuenta-nueva-password" type="password">
+    <div class="campo-password">
+      <input id="input-cuenta-nueva-password" type="password">
+      <button type="button" class="btn-toggle-password" data-target="input-cuenta-nueva-password" aria-label="Mostrar contraseña">👁</button>
+    </div>
     <label for="input-cuenta-confirmar-password">Confirmar contraseña</label>
-    <input id="input-cuenta-confirmar-password" type="password">
+    <div class="campo-password">
+      <input id="input-cuenta-confirmar-password" type="password">
+      <button type="button" class="btn-toggle-password" data-target="input-cuenta-confirmar-password" aria-label="Mostrar contraseña">👁</button>
+    </div>
     <div class="botones">
       <button id="btn-cancelar-cuenta" class="btn-secondary">Cancelar</button>
       <button id="btn-guardar-cuenta-password" class="btn-primary">Guardar contraseña</button>

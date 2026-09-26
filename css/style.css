@@ -86,6 +86,27 @@ input, select, textarea {
 
 textarea { resize: vertical; }
 
+/* overflow: hidden evita que el margin-bottom del input colapse hacia
+   afuera del contenedor, para que "height: 100%" del botón (más abajo)
+   coincida exactamente con la altura del input y no quede desalineado. */
+.campo-password { position: relative; overflow: hidden; }
+.campo-password input { padding-right: 40px; }
+.campo-password .btn-toggle-password {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  height: calc(100% - 10px);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--azul);
+}
+
 .btn-primary, .btn-secondary, .btn-mini {
   padding: 12px 18px;
   border-radius: 8px;

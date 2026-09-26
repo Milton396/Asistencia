@@ -174,3 +174,20 @@ const Utils = (() => {
 
   return { haversine, getUbicacionActual, hoyISO, toast, formatoHora, escapeHtml, validarCedulaEcuatoriana };
 })();
+
+// Botones de mostrar/ocultar contraseña (.btn-toggle-password, junto a un
+// input dentro de .campo-password). Se inicializan una sola vez para toda
+// la página, sin depender de qué módulo (Auth/Admin) maneje el modal donde
+// vive cada campo.
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.btn-toggle-password').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      const oculto = input.type === 'password';
+      input.type = oculto ? 'text' : 'password';
+      btn.textContent = oculto ? '🙈' : '👁';
+      btn.setAttribute('aria-label', oculto ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+  });
+});
