@@ -91,7 +91,7 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       contraseña), flujo completo de Externos por la UI, CRUD de
       administradores (Supabase Auth), turnos/ubicación, exportar a
       Excel, e ingreso/salida real con foto.
-- [~] Fase 6 — Corte a producción
+- [x] Fase 6 — Corte a producción (completa)
       - [x] Sincronizar delta: re-exportado EMPLEADOS/REGISTRO/EXTERNOS/
             REGISTRO_EXTERNOS de la Sheet real (no la copia) y re-corrido
             `generar_import.js` (ahora con `on conflict ... do update`
@@ -108,8 +108,12 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
             push — no hizo falta ningún paso manual de despliegue.
       - [x] Prueba rápida en producción: confirmada en el dispositivo
             real del kiosco (ingreso con foto/ubicación real).
-      - [ ] Avisar a los 4 administradores: ahora inician sesión con
+      - [x] Avisar a los 4 administradores: ahora inician sesión con
             correo, no con el username corto de antes
+
+**Migración completa (corte a producción: 2026-09-26).** Google
+Sheets/Apps Script queda como respaldo histórico (no borrar todavía) —
+la app en producción corre 100% sobre Supabase.
 
 ## CLI de Supabase
 
