@@ -106,6 +106,14 @@ function horaActual(): string {
   }).format(new Date());
 }
 
+function sumarDias(fechaStr: string, dias: number): string {
+  const [y, m, d] = fechaStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + dias);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+}
+
 // ==================== LÍMITE DE INTENTOS DEL KIOSCO ====================
 // Reemplaza CacheService (Apps Script): sin esto, cualquiera con la URL
 // podría spamear registros falsos y agotar la cuota de Storage.
@@ -439,6 +447,239 @@ async function externoRegistrarSalida(body: Record<string, unknown>) {
   };
 }
 
+// ==================== INFORME (por rango de fechas) ====================
+// Reutilizado por dos acciones: "informe" (Administración, admin-only,
+// cualquier rango) y "empleadosHoy" (pública, pestaña Registro del
+// kiosco, siempre hoy-a-hoy) — igual que hoy hace Code.gs.
+
+interface FilaInformeRegistro {
+  codigo: string; fecha: string; hora_ingreso: string | null; hora_salida: string | null;
+  observacion: string | null; estado_ingreso: string | null; estado_salida: string | null;
+}
+
+async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
+  const hoyStr = hoy();
+  let fechaDesde = fechaDesdeIn;
+  let fechaHasta = fechaHastaIn;
+
+  if (!fechaDesde && !fechaHasta) {
+    fechaDesde = fechaHasta = hoyStr;
+  } else if (!fechaHasta) {
+    fechaHasta = hoyStr;
+  } else if (!fechaDesde) {
+    // Sin límite inferior explícito: se usa la fecha del registro más antiguo.
+    const { data: minRow, error: minError } = await supabaseAdmin()
+      .from('registro').select('fecha').order('fecha', { ascending: true }).limit(1).maybeSingle();
+    if (minError) throw new Error(minError.message);
+    fechaDesde = minRow?.fecha || fechaHasta;
+  }
+  if (fechaHasta! > hoyStr) fechaHasta = hoyStr;
+  if (fechaDesde! > fechaHasta!) fechaDesde = fechaHasta;
+
+  const { data: empleados, error: empError } = await supabaseAdmin()
+    .from('empleados').select('codigo, nombre, cargo, turno').order('nombre');
+  if (empError) throw new Error(empError.message);
+
+  const { data: filas, error: regError } = await supabaseAdmin()
+    .from('registro')
+    .select('codigo, fecha, hora_ingreso, hora_salida, observacion, estado_ingreso, estado_salida')
+    .gte('fecha', fechaDesde!).lte('fecha', fechaHasta!);
+  if (regError) throw new Error(regError.message);
+
+  const registrosPorFecha = new Map<string, Map<string, FilaInformeRegistro>>();
+  for (const f of (filas as FilaInformeRegistro[])) {
+    if (!registrosPorFecha.has(f.fecha)) registrosPorFecha.set(f.fecha, new Map());
+    registrosPorFecha.get(f.fecha)!.set(f.codigo, f);
+  }
+
+  const registrados: unknown[] = [];
+  const noRegistrados: unknown[] = [];
+  for (let fecha = fechaDesde!; fecha <= fechaHasta!; fecha = sumarDias(fecha, 1)) {
+    const registrosDelDia = registrosPorFecha.get(fecha);
+    for (const emp of empleados) {
+      const reg = registrosDelDia?.get(emp.codigo);
+      if (reg && reg.hora_ingreso) {
+        registrados.push({
+          fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
+          horaIngreso: reg.hora_ingreso, horaSalida: reg.hora_salida || '',
+          estadoIngreso: reg.estado_ingreso, estadoSalida: reg.estado_salida || '',
+          observacion: reg.observacion || '',
+          horasExtras: calcularHorasExtras(fecha, emp.turno, reg.hora_ingreso, reg.hora_salida),
+        });
+      } else {
+        noRegistrados.push({ fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
+      }
+    }
+  }
+
+  return { fechaDesde, fechaHasta, registrados, noRegistrados };
+}
+
+// ==================== "REGISTRO" DEL KIOSCO (públicas, sin login) ====================
+
+async function externosHoy() {
+  const fecha = hoy();
+  const { data, error } = await supabaseAdmin()
+    .from('registro_externos')
+    .select('cedula, motivo, hora_ingreso, hora_salida, observacion, externos(nombre, departamento_proveedor)')
+    .eq('fecha', fecha)
+    .order('hora_ingreso', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data.map((r) => ({
+    cedula: r.cedula,
+    // deno-lint-ignore no-explicit-any
+    nombre: (r.externos as any)?.nombre,
+    // deno-lint-ignore no-explicit-any
+    departamento: (r.externos as any)?.departamento_proveedor,
+    motivo: r.motivo,
+    horaIngreso: r.hora_ingreso,
+    horaSalida: r.hora_salida,
+    observacion: r.observacion,
+  }));
+}
+
+// ==================== CRUD: EMPLEADOS ====================
+
+async function empleadoGuardar(body: Record<string, unknown>) {
+  const codigo = String(body.codigo ?? '').trim();
+  if (!codigo) throw new Error('El código es obligatorio');
+  if (!body.nombre) throw new Error('El nombre es obligatorio');
+  if (!body.turno) throw new Error('El turno es obligatorio');
+
+  const { data: existente, error: buscarError } = await supabaseAdmin()
+    .from('empleados').select('codigo').eq('codigo', codigo).maybeSingle();
+  if (buscarError) throw new Error(buscarError.message);
+
+  const { error } = await supabaseAdmin().from('empleados').upsert({
+    codigo,
+    nombre: body.nombre,
+    cargo: body.cargo || '',
+    turno: body.turno,
+    correo: body.correo || '',
+  }, { onConflict: 'codigo' });
+  if (error) throw new Error(error.message);
+
+  return existente ? { actualizado: true } : { creado: true };
+}
+
+async function empleadoEliminar(codigo: string) {
+  codigo = String(codigo);
+  const { data, error } = await supabaseAdmin().from('empleados').delete().eq('codigo', codigo).select('codigo');
+  if (error) {
+    // 23503 = foreign_key_violation. A diferencia de la Sheet (sin
+    // integridad referencial, dejaba filas de REGISTRO huérfanas —
+    // encontramos un caso real así al migrar), Postgres protege el
+    // historial de asistencia en vez de dejarlo huérfano en silencio.
+    if (error.code === '23503') {
+      throw new Error('No se puede eliminar: el empleado tiene registros de asistencia históricos.');
+    }
+    throw new Error(error.message);
+  }
+  if (!data || data.length === 0) throw new Error('Empleado no encontrado');
+  return { eliminado: true };
+}
+
+// ==================== TURNOS Y UBICACIÓN (config) ====================
+
+async function turnosGuardar(turnos: unknown) {
+  if (!Array.isArray(turnos) || turnos.length === 0) throw new Error('Debe haber al menos un turno');
+  const re = /^\d{2}:\d{2}$/;
+  for (const t of turnos) {
+    if (typeof t !== 'string' || !re.test(t)) throw new Error(`Formato de turno inválido: ${t} (use HH:mm)`);
+  }
+  const { error } = await supabaseAdmin().from('config')
+    .update({ turnos, updated_at: new Date().toISOString() }).eq('id', true);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+async function configGuardar(body: Record<string, unknown>) {
+  if (typeof body.lat !== 'number' || typeof body.lng !== 'number') {
+    throw new Error('Latitud y longitud son obligatorias');
+  }
+  const update: Record<string, unknown> = { lat: body.lat, lng: body.lng, updated_at: new Date().toISOString() };
+  if (body.radio) update.radio_metros = body.radio;
+  const { error } = await supabaseAdmin().from('config').update(update).eq('id', true);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+// ==================== CRUD: ADMINISTRADORES (Supabase Auth) ====================
+// A diferencia de la hoja USUARIOS, aquí el "username" pasa a ser el
+// correo de la cuenta de Supabase Auth — es el identificador real de
+// login ahora. passwordCambiar ya no existe como acción propia: el
+// frontend usa supabase.auth.updateUser({ password }) directo (Fase 4).
+
+async function listarUsuarios() {
+  const { data: perfiles, error } = await supabaseAdmin().from('perfiles_admin').select('user_id, nombre, rol');
+  if (error) throw new Error(error.message);
+  const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
+  if (usersError) throw new Error(usersError.message);
+  const emailPorId = new Map(usersList.users.map((u) => [u.id, u.email]));
+  return perfiles.map((p) => ({ username: emailPorId.get(p.user_id) || '', rol: p.rol, nombre: p.nombre }));
+}
+
+async function usuarioGuardar(body: Record<string, unknown>) {
+  const email = String(body.username ?? '').trim();
+  if (!email) throw new Error('El usuario es obligatorio');
+  if (!body.nombre) throw new Error('El nombre es obligatorio');
+  const emailOriginal = body.usernameOriginal ? String(body.usernameOriginal).trim() : null;
+
+  const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
+  if (usersError) throw new Error(usersError.message);
+
+  if (emailOriginal) {
+    const existente = usersList.users.find((u) => u.email === emailOriginal);
+    if (!existente) throw new Error('Usuario no encontrado');
+
+    const duplicado = usersList.users.find((u) => u.email === email && u.id !== existente.id);
+    if (duplicado) throw new Error('Ya existe un usuario con ese correo');
+
+    const updates: Record<string, unknown> = {};
+    if (email !== emailOriginal) updates.email = email;
+    if (body.password) updates.password = body.password;
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabaseAdmin().auth.admin.updateUserById(existente.id, updates);
+      if (error) throw new Error(error.message);
+    }
+    const { error: perfilError } = await supabaseAdmin()
+      .from('perfiles_admin').update({ nombre: body.nombre }).eq('user_id', existente.id);
+    if (perfilError) throw new Error(perfilError.message);
+    return { actualizado: true };
+  }
+
+  const duplicado = usersList.users.find((u) => u.email === email);
+  if (duplicado) throw new Error('Ya existe un usuario con ese correo');
+  if (!body.password) throw new Error('La contraseña es obligatoria');
+
+  const { data: creado, error: createError } = await supabaseAdmin().auth.admin.createUser({
+    email, password: body.password as string, email_confirm: true,
+  });
+  if (createError) throw new Error(createError.message);
+  const { error: perfilError } = await supabaseAdmin()
+    .from('perfiles_admin').insert({ user_id: creado.user!.id, nombre: body.nombre, rol: 'administrador' });
+  if (perfilError) throw new Error(perfilError.message);
+  return { creado: true };
+}
+
+async function usuarioEliminar(username: string) {
+  const email = String(username ?? '').trim();
+  const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
+  if (usersError) throw new Error(usersError.message);
+  const existente = usersList.users.find((u) => u.email === email);
+  if (!existente) throw new Error('Usuario no encontrado');
+
+  const { count, error: countError } = await supabaseAdmin()
+    .from('perfiles_admin').select('*', { count: 'exact', head: true }).eq('rol', 'administrador');
+  if (countError) throw new Error(countError.message);
+  if ((count ?? 0) <= 1) throw new Error('Debe existir al menos un administrador');
+
+  const { error } = await supabaseAdmin().auth.admin.deleteUser(existente.id);
+  if (error) throw new Error(error.message);
+  // perfiles_admin tiene "on delete cascade" desde auth.users: se borra solo.
+  return { eliminado: true };
+}
+
 // ==================== ROUTER ====================
 
 Deno.serve(async (req) => {
@@ -489,6 +730,45 @@ Deno.serve(async (req) => {
         break;
       case 'externoRegistrarSalida':
         data = await externoRegistrarSalida(body);
+        break;
+      case 'informe': {
+        await requireAdmin(req);
+        data = await generarInforme(body.fechaDesde as string | undefined, body.fechaHasta as string | undefined);
+        break;
+      }
+      case 'empleadosHoy':
+        data = await generarInforme(hoy(), hoy());
+        break;
+      case 'externosHoy':
+        data = await externosHoy();
+        break;
+      case 'empleadoGuardar':
+        await requireAdmin(req);
+        data = await empleadoGuardar(body);
+        break;
+      case 'empleadoEliminar':
+        await requireAdmin(req);
+        data = await empleadoEliminar(String(body.codigo ?? ''));
+        break;
+      case 'turnosGuardar':
+        await requireAdmin(req);
+        data = await turnosGuardar(body.turnos);
+        break;
+      case 'configGuardar':
+        await requireAdmin(req);
+        data = await configGuardar(body);
+        break;
+      case 'usuarios':
+        await requireAdmin(req);
+        data = await listarUsuarios();
+        break;
+      case 'usuarioGuardar':
+        await requireAdmin(req);
+        data = await usuarioGuardar(body);
+        break;
+      case 'usuarioEliminar':
+        await requireAdmin(req);
+        data = await usuarioEliminar(String(body.username ?? ''));
         break;
       default:
         throw new Error(`Acción ${req.method} no reconocida: ${action}`);

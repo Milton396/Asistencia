@@ -55,29 +55,30 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       (39 empleados, 1081 registros, config, y los 4 administradores
       vinculados en `perfiles_admin` vía Supabase Auth: `montty`,
       `rimbaquingo`, `mguanulema`, `wherrera`)
-- [~] Fase 3 — Edge Functions (backend). Hecho: función `api` con
-      `config` y `empleados` (lecturas públicas); `requireAdmin()`
-      (equivalente al de Code.gs, validando el access_token de Supabase
-      Auth) y acción `perfil` (nombre/rol tras el login, ya que Supabase
-      Auth no lo devuelve solo) — probado de punta a punta con una de
-      las 4 cuentas reales. El login en sí ya no es una acción propia:
-      lo hace supabase-js directo contra Supabase Auth (Fase 4).
-
-      También hecho: `registrarIngreso`/`registrarSalida` (empleados) y
-      `externoBuscar`/`externoRegistrarIngreso`/`externoRegistrarSalida`
-      (externos) — con validación de ubicación GPS, límite de intentos
-      del kiosco (nueva tabla `kiosco_limite`, atómico vía
-      `incrementar_limite_kiosco()`), fotos en Supabase Storage (bucket
-      público `fotos`, reemplaza Drive), cálculo de horas extra y
-      validación de cédula ecuatoriana. Probado de punta a punta por
-      curl: ingreso, ingreso duplicado, salida, ubicación fuera de
-      rango, código inexistente, ráfaga de 35 solicitudes (el límite
-      cortó justo en la 30), y el flujo completo de externos (buscar,
-      registrar nuevo, autocompletar en la siguiente búsqueda, ingreso
-      duplicado, salida, salida duplicada).
-
-      Falta: `informe` (por rango de fechas) y CRUD de administración
-      (empleados, turnos, config, usuarios).
+- [x] Fase 3 — Edge Functions (backend). Todas las acciones de
+      `Code.gs` portadas a la función `api` (una sola, enruta por
+      `action`) y probadas de punta a punta contra el proyecto real:
+      - **Públicas**: `empleados`, `config`, `empleadosHoy`,
+        `externosHoy`, `externoBuscar`.
+      - **Kiosco**: `registrarIngreso`/`registrarSalida` (GPS, foto,
+        horas extra, límite de intentos), `externoRegistrarIngreso`/
+        `externoRegistrarSalida` (cédula ecuatoriana, autoregistro).
+      - **Admin** (`requireAdmin()`, equivalente al de Code.gs pero con
+        access_token real de Supabase Auth): `perfil`, `informe` (por
+        rango de fechas), `empleadoGuardar`/`empleadoEliminar`,
+        `turnosGuardar`, `configGuardar`, `usuarios`/`usuarioGuardar`/
+        `usuarioEliminar` (ahora gestionan cuentas de Supabase Auth,
+        no filas de una hoja).
+      - Login y cambio de contraseña ya no son acciones propias: los
+        hace `supabase-js` directo contra Supabase Auth (Fase 4).
+      - Nueva infraestructura: tabla `kiosco_limite` +
+        `incrementar_limite_kiosco()` (reemplaza CacheService), bucket
+        de Storage `fotos` público (reemplaza Drive).
+      - Diferencia deliberada de comportamiento: `empleadoEliminar`
+        ahora **rechaza** borrar un empleado con historial de
+        asistencia (FK), en vez de dejarlo huérfano en silencio como
+        hacía la Sheet — encontramos un caso real así al migrar
+        (código 11750).
 - [ ] Fase 4 — Frontend (`js/api.js` con `supabase-js`)
 - [ ] Fase 5 — Pruebas end-to-end
 - [ ] Fase 6 — Corte a producción
