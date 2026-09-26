@@ -190,6 +190,12 @@ if (huerfanos.size) {
 }
 
 // ---------- registro ----------
+// "do update" (no "do nothing"): este script también se usa para la
+// sincronización final antes del corte a producción (Fase 6), donde una
+// fila ya migrada puede haber cambiado en la Sheet real desde entonces
+// (ej. se agregó la salida de un ingreso que ya estaba). empleados/
+// externos sí se quedan en "do nothing" para no pisar ediciones hechas
+// directamente en Supabase durante las pruebas (Fase 4/5).
 out.push('-- ---------- registro ----------');
 registro.forEach((r) => {
   out.push(
@@ -197,7 +203,10 @@ registro.forEach((r) => {
     `(${sqlStr(r.CODIGO)}, ${sqlStr(normalizarTurno(r.TURNO))}, ${sqlStr(r.FECHA)}::date, ` +
     `${sqlStr(r['HORA INGRESO'])}::time, ${sqlStr(r.IMAGEN1)}, ${sqlStr(r['HORA SALIDA'])}::time, ` +
     `${sqlStr(r.IMAGEN2)}, ${sqlStr(r.OBSERVACION)}, ${sqlStr(r['ESTADO INGRESO'])}, ${sqlStr(r['ESTADO SALIDA'])}) ` +
-    `on conflict (codigo, fecha) do nothing;`
+    `on conflict (codigo, fecha) do update set ` +
+    `turno = excluded.turno, hora_ingreso = excluded.hora_ingreso, imagen1_url = excluded.imagen1_url, ` +
+    `hora_salida = excluded.hora_salida, imagen2_url = excluded.imagen2_url, observacion = excluded.observacion, ` +
+    `estado_ingreso = excluded.estado_ingreso, estado_salida = excluded.estado_salida;`
   );
 });
 
@@ -224,7 +233,9 @@ if (registroExternos.length) {
       `insert into registro_externos (cedula, fecha, motivo, hora_ingreso, imagen1_url, hora_salida, observacion) values ` +
       `(${sqlStr(r.CEDULA)}, ${sqlStr(r.FECHA)}::date, ${sqlStr(r.MOTIVO)}, ${sqlStr(r['HORA INGRESO'])}::time, ` +
       `${sqlStr(r.IMAGEN1)}, ${sqlStr(r['HORA SALIDA'])}::time, ${sqlStr(r.OBSERVACION)}) ` +
-      `on conflict (cedula, fecha) do nothing;`
+      `on conflict (cedula, fecha) do update set ` +
+      `motivo = excluded.motivo, hora_ingreso = excluded.hora_ingreso, imagen1_url = excluded.imagen1_url, ` +
+      `hora_salida = excluded.hora_salida, observacion = excluded.observacion;`
     );
   });
 }
