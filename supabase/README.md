@@ -91,7 +91,21 @@ avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.
       contraseña), flujo completo de Externos por la UI, CRUD de
       administradores (Supabase Auth), turnos/ubicación, exportar a
       Excel, e ingreso/salida real con foto.
-- [ ] Fase 6 — Corte a producción
+- [~] Fase 6 — Corte a producción
+      - [x] Sincronizar delta: re-exportado EMPLEADOS/REGISTRO/EXTERNOS/
+            REGISTRO_EXTERNOS de la Sheet real (no la copia) y re-corrido
+            `generar_import.js` (ahora con `on conflict ... do update`
+            para registro/registro_externos, ver el script). Verificado:
+            1111 registros, 43 días, hasta 2026-09-26. Se confirmó que
+            no quedó ningún dato de prueba de las Fases 4/5 mezclado con
+            asistencia real (el kiosco real de los empleados corre en un
+            servidor/dispositivo separado del WAMP local usado para
+            probar, así que nunca hubo riesgo de contaminación cruzada).
+      - [ ] Fusionar `migracion-supabase` a `main` (o copiar los
+            archivos del frontend actualizados)
+      - [ ] Prueba rápida en producción tras el corte
+      - [ ] Avisar a los 4 administradores: ahora inician sesión con
+            correo, no con el username corto de antes
 
 ## CLI de Supabase
 
