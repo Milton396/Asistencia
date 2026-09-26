@@ -122,7 +122,6 @@ tokens reales de Supabase en vez de uno propio).
 
 ## Próximo paso
 
-Fase 3: reescribir como Edge Functions las acciones de `Code.gs`
-(login, registrarIngreso/Salida, externoRegistrarIngreso/Salida,
-informe, CRUD de empleados/usuarios/config, etc.), usando la service
-role key para todas las escrituras.
+Fase 4: adaptar el frontend (`js/api.js`, `js/auth.js`, `index.html`)
+para hablar con Supabase en vez de Apps Script — ver la sección
+"Pendiente para la Fase 4" arriba.
