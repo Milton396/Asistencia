@@ -6,7 +6,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   sumarDias, esFinDeSemana, haversine, horaASegundos, redondearAMediaHora,
   formatoHorasMinutos, calcularEstadoIngreso, calcularHorasExtras,
-  combinarObservacion, validarCedulaEcuatoriana, esRutaDeSupabaseStorage,
+  combinarObservacion, validarCedulaEcuatoriana, rutaStorageDesdeValor,
 } from './logica.ts';
 
 const corsHeaders = {
@@ -165,16 +165,27 @@ async function guardarFoto(base64Data: string | undefined, prefijo: string, codi
   return nombreArchivo;
 }
 
-// Genera URLs firmadas (expiran en 1 hora) para un lote de nombres de
-// archivo, en una sola llamada a Storage en vez de una por foto.
-async function urlsFirmadas(rutas: string[]): Promise<Map<string, string>> {
+// Genera URLs firmadas (expiran en 1 hora) para un lote de valores crudos
+// de imagen1_url/imagen2_url (nombre de archivo o URL pública vieja del
+// mismo bucket), en una sola llamada a Storage en vez de una por foto.
+// Devuelve un mapa valor-crudo -> URL para mostrar (firmada, o el valor
+// original si es una URL ajena que no se puede firmar).
+async function urlsFirmadas(valoresOriginales: string[]): Promise<Map<string, string>> {
   const resultado = new Map<string, string>();
-  const aFirmar = [...new Set(rutas)].filter((r) => r && esRutaDeSupabaseStorage(r));
-  if (aFirmar.length === 0) return resultado;
-  const { data, error } = await supabaseAdmin().storage.from(BUCKET_FOTOS).createSignedUrls(aFirmar, 3600);
+  const valorPorRuta = new Map<string, string>();
+  for (const valor of new Set(valoresOriginales)) {
+    if (!valor) continue;
+    const ruta = rutaStorageDesdeValor(valor, BUCKET_FOTOS);
+    if (ruta) valorPorRuta.set(ruta, valor);
+    else resultado.set(valor, valor);
+  }
+  const rutas = [...valorPorRuta.keys()];
+  if (rutas.length === 0) return resultado;
+  const { data, error } = await supabaseAdmin().storage.from(BUCKET_FOTOS).createSignedUrls(rutas, 3600);
   if (error) throw new Error(error.message);
   for (const item of data) {
-    if (item.path && item.signedUrl) resultado.set(item.path, item.signedUrl);
+    const valorOriginal = item.path ? valorPorRuta.get(item.path) : undefined;
+    if (valorOriginal && item.signedUrl) resultado.set(valorOriginal, item.signedUrl);
   }
   return resultado;
 }

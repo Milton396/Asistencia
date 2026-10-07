@@ -91,12 +91,21 @@ export function combinarObservacion(actual: string | null | undefined, nueva: un
 }
 
 // ==================== FOTOS (Supabase Storage) ====================
-// Las filas migradas desde la Sheet (antes del corte a producción,
-// 2026-09-26) guardaron URLs completas de Google Drive, no nombres de
-// archivo de Supabase Storage: esas no se pueden firmar (no viven en el
-// bucket "fotos") y se devuelven tal cual, sin firmar.
-export function esRutaDeSupabaseStorage(valor: string): boolean {
-  return !/^https?:\/\//i.test(valor);
+// `registro.imagen1_url`/`imagen2_url` acumulan 3 formatos distintos según
+// cuándo se guardó la fila:
+//  1. Nombre de archivo solo (formato actual, bucket privado).
+//  2. URL pública completa de Supabase Storage (bucket era público antes
+//     del 2026-10-07) — igual se puede extraer el nombre y firmarla.
+//  3. URL de Google Drive, migrada desde la Sheet antes del corte a
+//     producción (2026-09-26) — no vive en este bucket, no se puede firmar.
+// Devuelve el nombre de archivo a firmar, o null si es una URL ajena (caso 3).
+export function rutaStorageDesdeValor(valor: string, bucket: string): string | null {
+  if (!valor) return null;
+  const marcador = `/storage/v1/object/public/${bucket}/`;
+  const idx = valor.indexOf(marcador);
+  if (idx !== -1) return decodeURIComponent(valor.slice(idx + marcador.length));
+  if (!/^https?:\/\//i.test(valor)) return valor;
+  return null;
 }
 
 // ==================== EXTERNOS (cédula ecuatoriana) ====================

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   sumarDias, esFinDeSemana, haversine, horaASegundos, redondearAMediaHora,
   formatoHorasMinutos, calcularEstadoIngreso, calcularHorasExtras,
-  combinarObservacion, validarCedulaEcuatoriana, esRutaDeSupabaseStorage,
+  combinarObservacion, validarCedulaEcuatoriana, rutaStorageDesdeValor,
 } from './logica.ts';
 
 test('sumarDias avanza un día normal', () => {
@@ -127,8 +127,15 @@ test('validarCedulaEcuatoriana rechaza formato, provincia o dígito verificador 
   assert.equal(validarCedulaEcuatoriana('1710034066'), false); // dígito verificador incorrecto
 });
 
-test('esRutaDeSupabaseStorage distingue nombre de archivo de URL completa', () => {
-  assert.equal(esRutaDeSupabaseStorage('INGRESO_123_1700000000000.jpg'), true);
-  assert.equal(esRutaDeSupabaseStorage('https://drive.google.com/file/d/abc/view'), false);
-  assert.equal(esRutaDeSupabaseStorage('http://ejemplo.com/foto.jpg'), false);
+test('rutaStorageDesdeValor devuelve el nombre de archivo tal cual', () => {
+  assert.equal(rutaStorageDesdeValor('INGRESO_123_1700000000000.jpg', 'fotos'), 'INGRESO_123_1700000000000.jpg');
+});
+
+test('rutaStorageDesdeValor extrae el nombre de una URL pública vieja del mismo bucket', () => {
+  const url = 'https://uquodnqaxqfnyialqlkp.supabase.co/storage/v1/object/public/fotos/INGRESO_123_1700000000000.jpg';
+  assert.equal(rutaStorageDesdeValor(url, 'fotos'), 'INGRESO_123_1700000000000.jpg');
+});
+
+test('rutaStorageDesdeValor devuelve null para URLs ajenas (Google Drive)', () => {
+  assert.equal(rutaStorageDesdeValor('https://drive.google.com/file/d/abc/view', 'fotos'), null);
 });
