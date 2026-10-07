@@ -338,8 +338,11 @@ const Admin = (() => {
     el('resumen-informe').textContent =
       `${rangoTexto} — Registrados: ${ultimoInforme.registrados.length} · No registrados: ${ultimoInforme.noRegistrados.length}`;
 
+    const enlaceFoto = (url) => url
+      ? `<a href="${Utils.escapeHtml(url)}" target="_blank" rel="noopener">Ver foto</a>`
+      : '-';
     el('tabla-registrados').querySelector('tbody').innerHTML = registrados.map((r) => `
-      <tr><td>${Utils.escapeHtml(r.fecha)}</td><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td><td>${Utils.escapeHtml(r.horaIngreso)}</td><td>${Utils.escapeHtml(r.horaSalida || '-')}</td><td>${Utils.escapeHtml(r.estadoIngreso)}</td><td>${Utils.escapeHtml(r.estadoSalida || '-')}</td><td>${Utils.escapeHtml(r.horasExtras || '-')}</td></tr>
+      <tr><td>${Utils.escapeHtml(r.fecha)}</td><td>${Utils.escapeHtml(r.codigo)}</td><td>${Utils.escapeHtml(r.nombre)}</td><td>${Utils.escapeHtml(Utils.formatoHora(r.turno))}</td><td>${Utils.escapeHtml(r.horaIngreso)}</td><td>${Utils.escapeHtml(r.horaSalida || '-')}</td><td>${Utils.escapeHtml(r.estadoIngreso)}</td><td>${Utils.escapeHtml(r.estadoSalida || '-')}</td><td>${Utils.escapeHtml(r.horasExtras || '-')}</td><td>${enlaceFoto(r.fotoIngreso)}</td><td>${enlaceFoto(r.fotoSalida)}</td></tr>
     `).join('');
 
     el('tabla-no-registrados').querySelector('tbody').innerHTML = noRegistrados.map((r) => `
@@ -358,7 +361,9 @@ const Admin = (() => {
       FECHA: r.fecha, CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno),
       'HORA INGRESO': r.horaIngreso, 'HORA SALIDA': r.horaSalida,
       'ESTADO INGRESO': r.estadoIngreso, 'ESTADO SALIDA': r.estadoSalida || '',
-      'HORAS EXTRAS': r.horasExtras || '-'
+      'HORAS EXTRAS': r.horasExtras || '-',
+      // Enlaces firmados: expiran ~1 hora después de generar el informe.
+      'FOTO INGRESO': r.fotoIngreso || '', 'FOTO SALIDA': r.fotoSalida || ''
     })));
     const hojaNoReg = XLSX.utils.json_to_sheet(noRegistrados.map((r) => ({
       FECHA: r.fecha, CODIGO: r.codigo, NOMBRE: r.nombre, CARGO: r.cargo, TURNO: Utils.formatoHora(r.turno)

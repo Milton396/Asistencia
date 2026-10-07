@@ -6,7 +6,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   sumarDias, esFinDeSemana, haversine, horaASegundos, redondearAMediaHora,
   formatoHorasMinutos, calcularEstadoIngreso, calcularHorasExtras,
-  combinarObservacion, validarCedulaEcuatoriana,
+  combinarObservacion, validarCedulaEcuatoriana, esRutaDeSupabaseStorage,
 } from './logica.ts';
 
 const corsHeaders = {
@@ -148,6 +148,10 @@ async function validarUbicacion(lat: unknown, lng: unknown, accuracy: unknown): 
 }
 
 // ==================== FOTOS (Supabase Storage) ====================
+// El bucket "fotos" es privado (ver supabase/README.md, decisión de
+// diseño #5): se guarda solo el nombre de archivo en la base de datos,
+// nunca una URL pública fija. Para mostrar una foto hay que pedir una
+// URL firmada (con expiración) bajo demanda — ver urlsFirmadas().
 
 async function guardarFoto(base64Data: string | undefined, prefijo: string, codigo: string): Promise<string> {
   if (!base64Data) throw new Error('Falta la foto');
@@ -158,7 +162,21 @@ async function guardarFoto(base64Data: string | undefined, prefijo: string, codi
     contentType: 'image/jpeg',
   });
   if (error) throw new Error(error.message);
-  return supabaseAdmin().storage.from(BUCKET_FOTOS).getPublicUrl(nombreArchivo).data.publicUrl;
+  return nombreArchivo;
+}
+
+// Genera URLs firmadas (expiran en 1 hora) para un lote de nombres de
+// archivo, en una sola llamada a Storage en vez de una por foto.
+async function urlsFirmadas(rutas: string[]): Promise<Map<string, string>> {
+  const resultado = new Map<string, string>();
+  const aFirmar = [...new Set(rutas)].filter((r) => r && esRutaDeSupabaseStorage(r));
+  if (aFirmar.length === 0) return resultado;
+  const { data, error } = await supabaseAdmin().storage.from(BUCKET_FOTOS).createSignedUrls(aFirmar, 3600);
+  if (error) throw new Error(error.message);
+  for (const item of data) {
+    if (item.path && item.signedUrl) resultado.set(item.path, item.signedUrl);
+  }
+  return resultado;
 }
 
 // ==================== EMPLEADOS: registrar ingreso/salida ====================
@@ -360,9 +378,14 @@ async function externoRegistrarSalida(body: Record<string, unknown>) {
 interface FilaInformeRegistro {
   codigo: string; fecha: string; turno: string | null; hora_ingreso: string | null; hora_salida: string | null;
   observacion: string | null; estado_ingreso: string | null; estado_salida: string | null;
+  imagen1_url: string | null; imagen2_url: string | null;
 }
 
-async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
+// incluirFotos solo se pide true desde la acción admin "informe": la
+// acción pública "empleadosHoy" (pestaña Registro del kiosco, sin login)
+// reutiliza esta misma función pero nunca debe exponer fotos de
+// empleados a quien no inició sesión.
+async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string, incluirFotos = false) {
   const hoyStr = hoy();
   let fechaDesde = fechaDesdeIn;
   let fechaHasta = fechaHastaIn;
@@ -387,7 +410,7 @@ async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
 
   const { data: filas, error: regError } = await supabaseAdmin()
     .from('registro')
-    .select('codigo, fecha, turno, hora_ingreso, hora_salida, observacion, estado_ingreso, estado_salida')
+    .select('codigo, fecha, turno, hora_ingreso, hora_salida, observacion, estado_ingreso, estado_salida, imagen1_url, imagen2_url')
     .gte('fecha', fechaDesde!).lte('fecha', fechaHasta!);
   if (regError) throw new Error(regError.message);
 
@@ -395,6 +418,12 @@ async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
   for (const f of (filas as FilaInformeRegistro[])) {
     if (!registrosPorFecha.has(f.fecha)) registrosPorFecha.set(f.fecha, new Map());
     registrosPorFecha.get(f.fecha)!.set(f.codigo, f);
+  }
+
+  let fotos = new Map<string, string>();
+  if (incluirFotos) {
+    const rutas = (filas as FilaInformeRegistro[]).flatMap((f) => [f.imagen1_url, f.imagen2_url]).filter((r): r is string => !!r);
+    fotos = await urlsFirmadas(rutas);
   }
 
   const registrados: unknown[] = [];
@@ -415,6 +444,12 @@ async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
           estadoIngreso: reg.estado_ingreso, estadoSalida: reg.estado_salida || '',
           observacion: reg.observacion || '',
           horasExtras: calcularHorasExtras(fecha, turnoDelDia, reg.hora_ingreso, reg.hora_salida),
+          // Solo se agregan en la acción admin "informe" (ver incluirFotos):
+          // la pública "empleadosHoy" no debe exponer ni siquiera el campo.
+          ...(incluirFotos ? {
+            fotoIngreso: reg.imagen1_url ? (fotos.get(reg.imagen1_url) || null) : null,
+            fotoSalida: reg.imagen2_url ? (fotos.get(reg.imagen2_url) || null) : null,
+          } : {}),
         });
       } else {
         noRegistrados.push({ fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
@@ -673,7 +708,7 @@ Deno.serve(async (req) => {
         break;
       case 'informe': {
         await requireAdmin(req);
-        data = await generarInforme(body.fechaDesde as string | undefined, body.fechaHasta as string | undefined);
+        data = await generarInforme(body.fechaDesde as string | undefined, body.fechaHasta as string | undefined, true);
         break;
       }
       case 'empleadosHoy':

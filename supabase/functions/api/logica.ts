@@ -90,6 +90,15 @@ export function combinarObservacion(actual: string | null | undefined, nueva: un
   return a ? `${a} / ${n}` : n;
 }
 
+// ==================== FOTOS (Supabase Storage) ====================
+// Las filas migradas desde la Sheet (antes del corte a producción,
+// 2026-09-26) guardaron URLs completas de Google Drive, no nombres de
+// archivo de Supabase Storage: esas no se pueden firmar (no viven en el
+// bucket "fotos") y se devuelven tal cual, sin firmar.
+export function esRutaDeSupabaseStorage(valor: string): boolean {
+  return !/^https?:\/\//i.test(valor);
+}
+
 // ==================== EXTERNOS (cédula ecuatoriana) ====================
 
 export function validarCedulaEcuatoriana(cedula: string): boolean {

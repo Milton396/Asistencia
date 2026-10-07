@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   sumarDias, esFinDeSemana, haversine, horaASegundos, redondearAMediaHora,
   formatoHorasMinutos, calcularEstadoIngreso, calcularHorasExtras,
-  combinarObservacion, validarCedulaEcuatoriana,
+  combinarObservacion, validarCedulaEcuatoriana, esRutaDeSupabaseStorage,
 } from './logica.ts';
 
 test('sumarDias avanza un día normal', () => {
@@ -125,4 +125,10 @@ test('validarCedulaEcuatoriana rechaza formato, provincia o dígito verificador 
   assert.equal(validarCedulaEcuatoriana('9910034065'), false); // provincia > 24
   assert.equal(validarCedulaEcuatoriana('1760034065'), false); // tercer dígito > 5
   assert.equal(validarCedulaEcuatoriana('1710034066'), false); // dígito verificador incorrecto
+});
+
+test('esRutaDeSupabaseStorage distingue nombre de archivo de URL completa', () => {
+  assert.equal(esRutaDeSupabaseStorage('INGRESO_123_1700000000000.jpg'), true);
+  assert.equal(esRutaDeSupabaseStorage('https://drive.google.com/file/d/abc/view'), false);
+  assert.equal(esRutaDeSupabaseStorage('http://ejemplo.com/foto.jpg'), false);
 });

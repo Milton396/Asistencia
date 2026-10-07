@@ -38,11 +38,16 @@ app en producción (rama `main`).
    empareja por nombre para completar `proceso`. La columna `HORARIOS` de
    esa hoja (el turno) no se migra aparte porque ya existe como
    `empleados.turno`, alimentado por la hoja EMPLEADOS real de la app.
-5. **Fotos**: bucket de Supabase Storage `fotos`, creado **público**
-   (cualquiera con el link puede verla) — mismo nivel de privacidad que
-   hoy con Google Drive (`ANYONE_WITH_LINK`). Avisar si en algún momento
-   se prefiere que las fotos queden privadas (requeriría URLs firmadas
-   en vez de públicas, y tocar cómo el frontend/informe las muestra).
+5. **Fotos**: bucket de Supabase Storage `fotos`. Se creó público al
+   migrar (mismo nivel de privacidad que Google Drive `ANYONE_WITH_LINK`),
+   pero **pasó a privado el 2026-10-07** al agregar la visibilidad de
+   fotos en el Informe: en la base de datos se guarda solo el nombre de
+   archivo (no una URL), y `generarInforme()` genera URLs firmadas
+   (`createSignedUrls`, expiran en 1 hora) solo para la acción admin
+   `informe` — la acción pública `empleadosHoy` (pestaña Registro del
+   kiosco, sin login) nunca las incluye. Las fotos migradas desde Drive
+   antes del corte a producción no se pueden firmar (no viven en este
+   bucket) y no tienen enlace visible en el Informe.
 
 Si alguna de estas decisiones no es la que se quiere, avisar antes de
 avanzar a la Fase 3 (Edge Functions), porque cambia bastante el trabajo.

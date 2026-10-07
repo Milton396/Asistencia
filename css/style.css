@@ -107,6 +107,8 @@ textarea { resize: vertical; }
   color: var(--azul);
 }
 
+.texto-ayuda { color: var(--gris); font-size: 0.85rem; margin: -6px 0 10px; }
+
 .link-accion { margin: -6px 0 14px; font-size: 0.9rem; }
 .link-accion a { color: var(--azul); text-decoration: none; }
 .link-accion a:hover { text-decoration: underline; }
