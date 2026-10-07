@@ -453,7 +453,7 @@ async function externoRegistrarSalida(body: Record<string, unknown>) {
 // kiosco, siempre hoy-a-hoy) — igual que hoy hace Code.gs.
 
 interface FilaInformeRegistro {
-  codigo: string; fecha: string; hora_ingreso: string | null; hora_salida: string | null;
+  codigo: string; fecha: string; turno: string | null; hora_ingreso: string | null; hora_salida: string | null;
   observacion: string | null; estado_ingreso: string | null; estado_salida: string | null;
 }
 
@@ -482,7 +482,7 @@ async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
 
   const { data: filas, error: regError } = await supabaseAdmin()
     .from('registro')
-    .select('codigo, fecha, hora_ingreso, hora_salida, observacion, estado_ingreso, estado_salida')
+    .select('codigo, fecha, turno, hora_ingreso, hora_salida, observacion, estado_ingreso, estado_salida')
     .gte('fecha', fechaDesde!).lte('fecha', fechaHasta!);
   if (regError) throw new Error(regError.message);
 
@@ -499,12 +499,17 @@ async function generarInforme(fechaDesdeIn?: string, fechaHastaIn?: string) {
     for (const emp of empleados) {
       const reg = registrosDelDia?.get(emp.codigo);
       if (reg && reg.hora_ingreso) {
+        // Turno histórico (guardado en la fila al momento del ingreso), no
+        // el turno actual del empleado — si se lo reasignaron después, un
+        // informe de un mes atrás debe seguir mostrando el que tenía ese
+        // día, y las horas extra deben calcularse contra ese mismo turno.
+        const turnoDelDia = reg.turno || emp.turno;
         registrados.push({
-          fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno,
+          fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: turnoDelDia,
           horaIngreso: reg.hora_ingreso, horaSalida: reg.hora_salida || '',
           estadoIngreso: reg.estado_ingreso, estadoSalida: reg.estado_salida || '',
           observacion: reg.observacion || '',
-          horasExtras: calcularHorasExtras(fecha, emp.turno, reg.hora_ingreso, reg.hora_salida),
+          horasExtras: calcularHorasExtras(fecha, turnoDelDia, reg.hora_ingreso, reg.hora_salida),
         });
       } else {
         noRegistrados.push({ fecha, codigo: emp.codigo, nombre: emp.nombre, cargo: emp.cargo, turno: emp.turno });
