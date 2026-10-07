@@ -186,6 +186,7 @@
     <button class="tab-btn" data-tab="ubicacion">Ubicación</button>
     <button class="tab-btn" data-tab="informe">Informe</button>
     <button class="tab-btn" data-tab="usuarios">Usuarios</button>
+    <button class="tab-btn" data-tab="auditoria">Auditoría</button>
   </nav>
 
   <section id="panel-empleados" class="tab-panel">
@@ -267,6 +268,14 @@
     </div>
     <table id="tabla-usuarios" class="tabla">
       <thead><tr><th>Correo</th><th>Nombre</th><th>Acciones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="panel-auditoria" class="tab-panel hidden">
+    <p>Últimas acciones realizadas desde el panel de Administración.</p>
+    <table id="tabla-auditoria" class="tabla">
+      <thead><tr><th>Fecha</th><th>Administrador</th><th>Acción</th><th>Detalle</th></tr></thead>
       <tbody></tbody>
     </table>
   </section>

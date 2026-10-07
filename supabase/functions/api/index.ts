@@ -543,6 +543,36 @@ async function externosHoy() {
   }));
 }
 
+// ==================== AUDITORÍA ====================
+// Quién hizo qué y cuándo, para las acciones administrativas que
+// modifican datos (CRUD de empleados/usuarios, turnos, ubicación). No
+// se registran las lecturas (informe, listados) ni las acciones del
+// kiosco público.
+
+interface SesionAdmin { userId: string; email: string | undefined; nombre: string; rol: string }
+
+async function registrarAuditoria(sesion: SesionAdmin, accion: string, detalle?: Record<string, unknown>) {
+  const { error } = await supabaseAdmin().from('auditoria').insert({
+    admin_email: sesion.email || '',
+    admin_nombre: sesion.nombre,
+    accion,
+    detalle: detalle ?? null,
+  });
+  // Un fallo al auditar no debe impedir la acción ya realizada; solo se
+  // registra en los logs de la función.
+  if (error) console.error('Error al registrar auditoría:', error.message);
+}
+
+async function listarAuditoria(limite: number) {
+  const { data, error } = await supabaseAdmin()
+    .from('auditoria')
+    .select('fecha, admin_email, admin_nombre, accion, detalle')
+    .order('fecha', { ascending: false })
+    .limit(limite);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // ==================== CRUD: EMPLEADOS ====================
 
 async function empleadoGuardar(body: Record<string, unknown>) {
@@ -747,33 +777,50 @@ Deno.serve(async (req) => {
       case 'externosHoy':
         data = await externosHoy();
         break;
-      case 'empleadoGuardar':
-        await requireAdmin(req);
+      case 'empleadoGuardar': {
+        const sesion = await requireAdmin(req);
         data = await empleadoGuardar(body);
+        await registrarAuditoria(sesion, 'empleadoGuardar', { codigo: body.codigo, nombre: body.nombre });
         break;
-      case 'empleadoEliminar':
-        await requireAdmin(req);
+      }
+      case 'empleadoEliminar': {
+        const sesion = await requireAdmin(req);
         data = await empleadoEliminar(String(body.codigo ?? ''));
+        await registrarAuditoria(sesion, 'empleadoEliminar', { codigo: body.codigo });
         break;
-      case 'turnosGuardar':
-        await requireAdmin(req);
+      }
+      case 'turnosGuardar': {
+        const sesion = await requireAdmin(req);
         data = await turnosGuardar(body.turnos);
+        await registrarAuditoria(sesion, 'turnosGuardar', { turnos: body.turnos });
         break;
-      case 'configGuardar':
-        await requireAdmin(req);
+      }
+      case 'configGuardar': {
+        const sesion = await requireAdmin(req);
         data = await configGuardar(body);
+        await registrarAuditoria(sesion, 'configGuardar', { lat: body.lat, lng: body.lng, radio: body.radio });
         break;
+      }
       case 'usuarios':
         await requireAdmin(req);
         data = await listarUsuarios();
         break;
-      case 'usuarioGuardar':
-        await requireAdmin(req);
+      case 'usuarioGuardar': {
+        const sesion = await requireAdmin(req);
         data = await usuarioGuardar(body);
+        // Nunca se guarda la contraseña en el detalle de auditoría.
+        await registrarAuditoria(sesion, 'usuarioGuardar', { username: body.username, nombre: body.nombre });
         break;
-      case 'usuarioEliminar':
-        await requireAdmin(req);
+      }
+      case 'usuarioEliminar': {
+        const sesion = await requireAdmin(req);
         data = await usuarioEliminar(String(body.username ?? ''));
+        await registrarAuditoria(sesion, 'usuarioEliminar', { username: body.username });
+        break;
+      }
+      case 'auditoria':
+        await requireAdmin(req);
+        data = await listarAuditoria(Math.min(Number(body.limite) || 200, 500));
         break;
       default:
         throw new Error(`Acción ${req.method} no reconocida: ${action}`);

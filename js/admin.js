@@ -4,6 +4,7 @@ const Admin = (() => {
   let empleados = [];
   let turnos = [];
   let usuarios = [];
+  let auditoria = [];
   let editandoCodigo = null;
   let editandoUsername = null;
   let ultimoInforme = null;
@@ -64,6 +65,7 @@ const Admin = (() => {
   function cambiarTab(nombre) {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === nombre));
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== 'panel-' + nombre));
+    if (nombre === 'auditoria') cargarAuditoria();
   }
 
   // ---------- EMPLEADOS ----------
@@ -450,6 +452,41 @@ const Admin = (() => {
     } catch (err) {
       Utils.toast(err.message, 'error');
     }
+  }
+
+  // ---------- AUDITORÍA ----------
+
+  const ETIQUETAS_ACCION = {
+    empleadoGuardar: 'Guardar empleado',
+    empleadoEliminar: 'Eliminar empleado',
+    turnosGuardar: 'Guardar turnos',
+    configGuardar: 'Guardar ubicación',
+    usuarioGuardar: 'Guardar usuario',
+    usuarioEliminar: 'Eliminar usuario'
+  };
+
+  async function cargarAuditoria() {
+    try {
+      auditoria = await Api.post('auditoria', { token: Auth.token(), limite: 200 });
+      renderAuditoria();
+    } catch (err) {
+      Utils.toast(err.message, 'error');
+    }
+  }
+
+  function renderAuditoria() {
+    const tbody = el('tabla-auditoria').querySelector('tbody');
+    tbody.innerHTML = auditoria.map((a) => {
+      const fecha = new Date(a.fecha).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' });
+      const detalle = a.detalle ? Object.entries(a.detalle).map(([k, v]) => `${k}: ${v}`).join(', ') : '';
+      return `
+        <tr>
+          <td>${Utils.escapeHtml(fecha)}</td>
+          <td>${Utils.escapeHtml(a.admin_nombre)} (${Utils.escapeHtml(a.admin_email)})</td>
+          <td>${Utils.escapeHtml(ETIQUETAS_ACCION[a.accion] || a.accion)}</td>
+          <td>${Utils.escapeHtml(detalle)}</td>
+        </tr>`;
+    }).join('');
   }
 
   // ---------- NOTIFICACIÓN DE ÚLTIMO TURNO ----------

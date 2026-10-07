@@ -119,6 +119,21 @@ as $$
   returning intentos;
 $$;
 
+-- ---------- AUDITORIA (acciones administrativas) ----------
+-- Quién hizo qué y cuándo (crear/editar/eliminar empleados, cambios de
+-- turnos/ubicación, CRUD de usuarios admin). Solo se escribe desde la
+-- Edge Function (service role).
+create table auditoria (
+  id            bigint generated always as identity primary key,
+  fecha         timestamptz not null default now(),
+  admin_email   text not null,
+  admin_nombre  text not null,
+  accion        text not null,
+  detalle       jsonb
+);
+create index auditoria_fecha_idx on auditoria (fecha desc);
+alter table auditoria enable row level security;
+
 -- ============================================================
 -- Row Level Security (RLS)
 -- Política general: TODAS las tablas quedan con RLS activado y SIN
