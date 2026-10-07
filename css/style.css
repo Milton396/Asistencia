@@ -107,6 +107,10 @@ textarea { resize: vertical; }
   color: var(--azul);
 }
 
+.link-accion { margin: -6px 0 14px; font-size: 0.9rem; }
+.link-accion a { color: var(--azul); text-decoration: none; }
+.link-accion a:hover { text-decoration: underline; }
+
 .btn-primary, .btn-secondary, .btn-mini {
   padding: 12px 18px;
   border-radius: 8px;

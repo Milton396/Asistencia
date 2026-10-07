@@ -10,6 +10,11 @@ const Auth = (() => {
 
   let sesionActual = null; // sesión de Supabase Auth (access_token, etc.)
   let perfilActual = null; // { nombre, rol, email } vía la acción "perfil"
+  // true cuando el modal "Mi cuenta" se abrió desde un enlace de
+  // recuperación de contraseña (no desde el botón normal estando ya
+  // logueado) — al guardar, hay que llevar al usuario al panel de
+  // Administración en vez de solo cerrar el modal.
+  let recuperandoPassword = false;
 
   function token() {
     return sesionActual ? sesionActual.access_token : null;
@@ -77,9 +82,47 @@ const Auth = (() => {
     Kiosko.reiniciarFlujo();
   }
 
+  function abrirModalRecuperar() {
+    el('modal-admin-login').classList.add('hidden');
+    el('input-recuperar-correo').value = el('input-admin-usuario').value.trim();
+    el('modal-recuperar').classList.remove('hidden');
+    el('input-recuperar-correo').focus();
+  }
+
+  async function enviarEnlaceRecuperacion() {
+    const email = el('input-recuperar-correo').value.trim();
+    if (!email) {
+      Utils.toast('Ingrese su correo', 'error');
+      return;
+    }
+    try {
+      const { error } = await SUPABASE_CLIENT.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if (error) throw new Error(error.message);
+      el('modal-recuperar').classList.add('hidden');
+      Utils.toast('Si el correo existe, se envió un enlace para restablecer la contraseña', 'ok', 6000);
+    } catch (err) {
+      Utils.toast(err.message, 'error');
+    }
+  }
+
   function abrirModalCuenta() {
+    el('modal-cuenta-titulo').textContent = 'Mi cuenta';
     el('input-cuenta-nueva-password').value = '';
     el('input-cuenta-confirmar-password').value = '';
+    el('modal-cuenta').classList.remove('hidden');
+  }
+
+  // Se abre sola cuando el usuario llega desde el enlace de recuperación
+  // del correo (ver el listener de onAuthStateChange en init()).
+  function abrirModalCuentaParaRecuperar() {
+    recuperandoPassword = true;
+    el('modal-cuenta-titulo').textContent = 'Restablecer contraseña';
+    el('input-cuenta-nueva-password').value = '';
+    el('input-cuenta-confirmar-password').value = '';
+    el('modal-admin-login').classList.add('hidden');
+    el('modal-recuperar').classList.add('hidden');
     el('modal-cuenta').classList.remove('hidden');
   }
 
@@ -93,6 +136,14 @@ const Auth = (() => {
       if (error) throw new Error(error.message);
       el('modal-cuenta').classList.add('hidden');
       Utils.toast('Contraseña actualizada', 'ok');
+      if (recuperandoPassword) {
+        // La sesión de recuperación ya es una sesión válida de Supabase
+        // Auth: se aprovecha para entrar directo, en vez de pedir que
+        // vuelva a iniciar sesión con la contraseña que recién puso.
+        recuperandoPassword = false;
+        await cargarPerfil();
+        if (perfilActual) Admin.mostrarVistaAdmin();
+      }
     } catch (err) {
       Utils.toast(err.message, 'error');
     }
@@ -104,10 +155,24 @@ const Auth = (() => {
     el('btn-admin-login').addEventListener('click', hacerLogin);
     el('input-admin-usuario').addEventListener('keydown', (e) => { if (e.key === 'Enter') hacerLogin(); });
     el('input-admin-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') hacerLogin(); });
+    el('link-olvide-password').addEventListener('click', (e) => { e.preventDefault(); abrirModalRecuperar(); });
+    el('btn-cancelar-recuperar').addEventListener('click', () => el('modal-recuperar').classList.add('hidden'));
+    el('btn-enviar-recuperar').addEventListener('click', enviarEnlaceRecuperacion);
+    el('input-recuperar-correo').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarEnlaceRecuperacion(); });
     el('btn-cerrar-sesion').addEventListener('click', cerrarSesion);
     el('btn-mi-cuenta').addEventListener('click', abrirModalCuenta);
     el('btn-cancelar-cuenta').addEventListener('click', () => el('modal-cuenta').classList.add('hidden'));
     el('btn-guardar-cuenta-password').addEventListener('click', guardarPasswordPropia);
+
+    // Cuando el usuario llega desde el enlace de "recuperar contraseña"
+    // del correo, Supabase detecta el token en la URL al cargar la
+    // página y dispara este evento con una sesión temporal válida.
+    SUPABASE_CLIENT.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        sesionActual = session;
+        abrirModalCuentaParaRecuperar();
+      }
+    });
 
     // Restaura la sesión guardada en sessionStorage (ej. al recargar la
     // página estando logueado) antes de que el resto de la app pregunte

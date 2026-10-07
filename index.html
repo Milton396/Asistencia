@@ -26,9 +26,24 @@
       <input id="input-admin-password" type="password" placeholder="Contraseña">
       <button type="button" class="btn-toggle-password" data-target="input-admin-password" aria-label="Mostrar contraseña">👁</button>
     </div>
+    <p class="link-accion"><a href="#" id="link-olvide-password">¿Olvidaste tu contraseña?</a></p>
     <div class="botones">
       <button id="btn-cerrar-login" class="btn-secondary">Cancelar</button>
       <button id="btn-admin-login" class="btn-primary">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL RECUPERAR CONTRASEÑA ===================== -->
+<div id="modal-recuperar" class="modal hidden">
+  <div class="modal-content">
+    <h2>Recuperar contraseña</h2>
+    <p>Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+    <label for="input-recuperar-correo">Correo</label>
+    <input id="input-recuperar-correo" type="email" placeholder="correo@ejemplo.com">
+    <div class="botones">
+      <button id="btn-cancelar-recuperar" class="btn-secondary">Cancelar</button>
+      <button id="btn-enviar-recuperar" class="btn-primary">Enviar enlace</button>
     </div>
   </div>
 </div>
@@ -301,7 +316,7 @@
 <!-- ===================== MODAL MI CUENTA ===================== -->
 <div id="modal-cuenta" class="modal hidden">
   <div class="modal-content">
-    <h2>Mi cuenta</h2>
+    <h2 id="modal-cuenta-titulo">Mi cuenta</h2>
     <label for="input-cuenta-nueva-password">Nueva contraseña</label>
     <div class="campo-password">
       <input id="input-cuenta-nueva-password" type="password">
