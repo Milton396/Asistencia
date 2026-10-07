@@ -4,7 +4,7 @@
   "description": "Esta carpeta y la rama `migracion-supabase` son el ambiente de pruebas para migrar el backend de Google Sheets/Apps Script a Supabase, sin afectar la app en producción (rama `main`).",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test functions/api/logica.test.ts"
   },
   "keywords": [],
   "author": "",

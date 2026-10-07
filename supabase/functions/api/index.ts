@@ -3,6 +3,11 @@
 // cambiar lo mínimo posible en la Fase 4 (misma forma de llamar, mismo
 // contrato de respuesta { ok, data } / { ok, error }).
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  sumarDias, esFinDeSemana, haversine, horaASegundos, redondearAMediaHora,
+  formatoHorasMinutos, calcularEstadoIngreso, calcularHorasExtras,
+  combinarObservacion, validarCedulaEcuatoriana,
+} from './logica.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,14 +111,6 @@ function horaActual(): string {
   }).format(new Date());
 }
 
-function sumarDias(fechaStr: string, dias: number): string {
-  const [y, m, d] = fechaStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + dias);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
-}
-
 // ==================== LÍMITE DE INTENTOS DEL KIOSCO ====================
 // Reemplaza CacheService (Apps Script): sin esto, cualquiera con la URL
 // podría spamear registros falsos y agotar la cuota de Storage.
@@ -127,16 +124,6 @@ async function verificarLimiteKiosco() {
 }
 
 // ==================== UBICACIÓN (GPS) ====================
-
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (v: number) => (v * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 async function validarUbicacion(lat: unknown, lng: unknown, accuracy: unknown): Promise<number> {
   const { data: cfg, error } = await supabaseAdmin().from('config').select('lat, lng, radio_metros').single();
@@ -172,70 +159,6 @@ async function guardarFoto(base64Data: string | undefined, prefijo: string, codi
   });
   if (error) throw new Error(error.message);
   return supabaseAdmin().storage.from(BUCKET_FOTOS).getPublicUrl(nombreArchivo).data.publicUrl;
-}
-
-// ==================== HORAS EXTRA ====================
-// Mismas reglas que Code.gs: entre semana, la hora extra empieza 9h01s
-// después del inicio del turno (jornada de 8h + 1h de almuerzo); fines de
-// semana, toda la jornada trabajada cuenta como hora extra. El exceso se
-// redondea al medio hora más cercano.
-
-function horaASegundos(horaStr: string | null | undefined): number | null {
-  if (!horaStr) return null;
-  const partes = String(horaStr).split(':').map(Number);
-  return (partes[0] || 0) * 3600 + (partes[1] || 0) * 60 + (partes[2] || 0);
-}
-
-function redondearAMediaHora(totalSegundos: number): number {
-  if (totalSegundos <= 0) return 0;
-  let horas = Math.floor(totalSegundos / 3600);
-  const restoSegundos = totalSegundos % 3600;
-  let minutosExtra: number;
-  if (restoSegundos < 30 * 60) minutosExtra = 0;
-  else if (restoSegundos < 45 * 60) minutosExtra = 30;
-  else { horas += 1; minutosExtra = 0; }
-  return horas * 60 + minutosExtra;
-}
-
-function formatoHorasMinutos(totalMinutos: number): string {
-  const horas = Math.floor(totalMinutos / 60);
-  const minutos = totalMinutos % 60;
-  return `${horas}:${minutos < 10 ? '0' : ''}${minutos}`;
-}
-
-function esFinDeSemana(fecha: string): boolean {
-  const [y, m, d] = fecha.split('-').map(Number);
-  const dia = new Date(y, m - 1, d).getDay();
-  return dia === 0 || dia === 6;
-}
-
-function calcularEstadoIngreso(horaStr: string, turnoStr: string): string {
-  const horaTurno = turnoStr.length === 5 ? turnoStr + ':00' : turnoStr;
-  return horaStr <= horaTurno ? 'A TIEMPO' : 'ATRASADO';
-}
-
-function calcularHorasExtras(
-  fecha: string, turnoStr: string, horaIngresoStr: string | null, horaSalidaStr: string | null | undefined
-): string | null {
-  if (!horaSalidaStr) return null;
-  const salidaSeg = horaASegundos(horaSalidaStr)!;
-  let totalSegundos: number;
-  if (esFinDeSemana(fecha)) {
-    const ingresoSeg = horaASegundos(horaIngresoStr);
-    totalSegundos = ingresoSeg == null ? 0 : salidaSeg - ingresoSeg;
-  } else {
-    const turnoSeg = horaASegundos(turnoStr.length === 5 ? turnoStr + ':00' : turnoStr)!;
-    const umbral = turnoSeg + 9 * 3600 + 1;
-    totalSegundos = salidaSeg - umbral;
-  }
-  return formatoHorasMinutos(redondearAMediaHora(totalSegundos));
-}
-
-function combinarObservacion(actual: string | null | undefined, nueva: unknown): string {
-  const a = (actual || '').toString();
-  const n = (nueva || '').toString().trim().slice(0, 200);
-  if (!n) return a;
-  return a ? `${a} / ${n}` : n;
 }
 
 // ==================== EMPLEADOS: registrar ingreso/salida ====================
@@ -334,24 +257,6 @@ async function registrarSalida(body: Record<string, unknown>) {
 }
 
 // ==================== EXTERNOS (autoregistro por cédula) ====================
-
-function validarCedulaEcuatoriana(cedula: string): boolean {
-  cedula = (cedula || '').trim();
-  if (!/^\d{10}$/.test(cedula)) return false;
-  const provincia = Number(cedula.substring(0, 2));
-  if (provincia < 1 || provincia > 24) return false;
-  const tercerDigito = Number(cedula.charAt(2));
-  if (tercerDigito > 5) return false;
-  const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
-  let suma = 0;
-  for (let i = 0; i < 9; i++) {
-    let producto = Number(cedula.charAt(i)) * coeficientes[i];
-    if (producto >= 10) producto -= 9;
-    suma += producto;
-  }
-  const digitoVerificador = (10 - (suma % 10)) % 10;
-  return digitoVerificador === Number(cedula.charAt(9));
-}
 
 async function buscarExterno(cedula: string) {
   cedula = (cedula || '').trim();
