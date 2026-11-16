@@ -1,15 +1,16 @@
 // Login y sesión del panel de administración. El kiosco de registro es
 // público (no requiere iniciar sesión); solo entrar a "Administración" pide
-// usuario y contraseña — que ahora es el CORREO de la cuenta de Supabase
-// Auth (ver supabase/README.md), no un username corto como antes. La
-// sesión la maneja SUPABASE_CLIENT (js/config.js) con sessionStorage: se
-// cierra sola al cerrar la pestaña/navegador, igual que el token propio
-// de antes.
+// un USUARIO corto (perfiles_admin.usuario) y contraseña — el backend
+// resuelve ese usuario al correo real de la cuenta de Supabase Auth antes
+// de autenticar (ver acción "loginEmail"). El correo queda solo para
+// "¿Olvidaste tu contraseña?". La sesión la maneja SUPABASE_CLIENT
+// (js/config.js) con sessionStorage: se cierra sola al cerrar la
+// pestaña/navegador, igual que el token propio de antes.
 const Auth = (() => {
   const el = (id) => document.getElementById(id);
 
   let sesionActual = null; // sesión de Supabase Auth (access_token, etc.)
-  let perfilActual = null; // { nombre, rol, email } vía la acción "perfil"
+  let perfilActual = null; // { usuario, rol, email } vía la acción "perfil"
   // true cuando el modal "Mi cuenta" se abrió desde un enlace de
   // recuperación de contraseña (no desde el botón normal estando ya
   // logueado) — al guardar, hay que llevar al usuario al panel de
@@ -24,8 +25,8 @@ const Auth = (() => {
     return !!sesionActual;
   }
 
-  function nombre() {
-    return perfilActual ? perfilActual.nombre : '';
+  function usuario() {
+    return perfilActual ? perfilActual.usuario : '';
   }
 
   // "perfil" confirma además que la cuenta tiene acceso de administrador
@@ -50,13 +51,19 @@ const Auth = (() => {
   }
 
   async function hacerLogin() {
-    const email = el('input-admin-usuario').value.trim();
+    const usuarioIngresado = el('input-admin-usuario').value.trim();
     const password = el('input-admin-password').value;
-    if (!email || !password) {
+    if (!usuarioIngresado || !password) {
       Utils.toast('Ingrese usuario y contraseña', 'error');
       return;
     }
     try {
+      // El usuario corto no es el identificador de Supabase Auth: hay que
+      // resolverlo al correo real antes de poder autenticar. No se
+      // distingue "usuario no existe" de "contraseña incorrecta" en el
+      // mensaje final, para no revelar qué usuarios existen.
+      const { email } = await Api.post('loginEmail', { usuario: usuarioIngresado });
+      if (!email) throw new Error('Usuario o contraseña incorrectos');
       const { data, error } = await SUPABASE_CLIENT.auth.signInWithPassword({ email, password });
       if (error) throw new Error('Usuario o contraseña incorrectos');
       sesionActual = data.session;
@@ -84,7 +91,9 @@ const Auth = (() => {
 
   function abrirModalRecuperar() {
     el('modal-admin-login').classList.add('hidden');
-    el('input-recuperar-correo').value = el('input-admin-usuario').value.trim();
+    // Ya no se puede prellenar con el campo de usuario: ese campo ahora
+    // es un usuario corto, no el correo de la cuenta.
+    el('input-recuperar-correo').value = '';
     el('modal-recuperar').classList.remove('hidden');
     el('input-recuperar-correo').focus();
   }
@@ -184,7 +193,7 @@ const Auth = (() => {
     }
   }
 
-  return { init, token, cerrarSesion, estaLogueado, nombre };
+  return { init, token, cerrarSesion, estaLogueado, usuario };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {

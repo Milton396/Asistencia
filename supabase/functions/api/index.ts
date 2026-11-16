@@ -48,7 +48,7 @@ async function requireAdmin(req: Request) {
 
   const { data: perfil, error: perfilError } = await supabaseAdmin()
     .from('perfiles_admin')
-    .select('nombre, rol')
+    .select('usuario, rol')
     .eq('user_id', userData.user.id)
     .maybeSingle();
   if (perfilError) throw new Error(perfilError.message);
@@ -56,7 +56,29 @@ async function requireAdmin(req: Request) {
     throw new Error('Requiere permisos de administrador.');
   }
 
-  return { userId: userData.user.id, email: userData.user.email, nombre: perfil.nombre, rol: perfil.rol };
+  return { userId: userData.user.id, email: userData.user.email, usuario: perfil.usuario, rol: perfil.rol };
+}
+
+// El login ya no pide el correo de la cuenta de Supabase Auth, sino un
+// usuario corto (perfiles_admin.usuario). Esta acción pública resuelve
+// usuario -> correo antes de que el frontend llame a
+// supabase.auth.signInWithPassword (que sí necesita el correo real). El
+// correo sigue siendo la única vía para recuperar la contraseña. Nunca
+// distingue "usuario no existe" de "contraseña incorrecta" en el
+// mensaje final que ve el usuario (ver hacerLogin en js/auth.js).
+async function emailPorUsuario(usuarioIn: string): Promise<string | null> {
+  const usuario = (usuarioIn || '').trim().toLowerCase();
+  if (!usuario) return null;
+  const { data: perfil, error } = await supabaseAdmin()
+    .from('perfiles_admin')
+    .select('user_id')
+    .eq('usuario', usuario)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!perfil) return null;
+  const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(perfil.user_id);
+  if (userError || !userData?.user) return null;
+  return userData.user.email ?? null;
 }
 
 // ==================== ACCIONES PÚBLICAS (sin login) ====================
@@ -506,12 +528,12 @@ async function externosHoy() {
 // se registran las lecturas (informe, listados) ni las acciones del
 // kiosco público.
 
-interface SesionAdmin { userId: string; email: string | undefined; nombre: string; rol: string }
+interface SesionAdmin { userId: string; email: string | undefined; usuario: string; rol: string }
 
 async function registrarAuditoria(sesion: SesionAdmin, accion: string, detalle?: Record<string, unknown>) {
   const { error } = await supabaseAdmin().from('auditoria').insert({
     admin_email: sesion.email || '',
-    admin_nombre: sesion.nombre,
+    admin_nombre: sesion.usuario,
     accion,
     detalle: detalle ?? null,
   });
@@ -597,65 +619,74 @@ async function configGuardar(body: Record<string, unknown>) {
 }
 
 // ==================== CRUD: ADMINISTRADORES (Supabase Auth) ====================
-// A diferencia de la hoja USUARIOS, aquí el "username" pasa a ser el
-// correo de la cuenta de Supabase Auth — es el identificador real de
-// login ahora. passwordCambiar ya no existe como acción propia: el
-// frontend usa supabase.auth.updateUser({ password }) directo (Fase 4).
+// "usuario" (perfiles_admin.usuario) es el identificador con el que se
+// inicia sesión (ver acción "loginEmail"); el correo de la cuenta de
+// Supabase Auth queda solo para recuperar la contraseña. passwordCambiar
+// no existe como acción propia: el frontend usa
+// supabase.auth.updateUser({ password }) directo (Fase 4).
 
 async function listarUsuarios() {
-  const { data: perfiles, error } = await supabaseAdmin().from('perfiles_admin').select('user_id, nombre, rol');
+  const { data: perfiles, error } = await supabaseAdmin().from('perfiles_admin').select('user_id, usuario, rol');
   if (error) throw new Error(error.message);
   const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
   if (usersError) throw new Error(usersError.message);
   const emailPorId = new Map(usersList.users.map((u) => [u.id, u.email]));
-  return perfiles.map((p) => ({ username: emailPorId.get(p.user_id) || '', rol: p.rol, nombre: p.nombre }));
+  return perfiles.map((p) => ({ correo: emailPorId.get(p.user_id) || '', rol: p.rol, usuario: p.usuario }));
 }
 
 async function usuarioGuardar(body: Record<string, unknown>) {
-  const email = String(body.username ?? '').trim();
-  if (!email) throw new Error('El usuario es obligatorio');
-  if (!body.nombre) throw new Error('El nombre es obligatorio');
-  const emailOriginal = body.usernameOriginal ? String(body.usernameOriginal).trim() : null;
+  const correo = String(body.correo ?? '').trim();
+  const usuario = String(body.usuario ?? '').trim().toLowerCase();
+  if (!correo) throw new Error('El correo es obligatorio');
+  if (!usuario) throw new Error('El usuario es obligatorio');
+  const correoOriginal = body.correoOriginal ? String(body.correoOriginal).trim() : null;
 
   const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
   if (usersError) throw new Error(usersError.message);
+  const { data: perfilesExistentes, error: perfilesError } = await supabaseAdmin()
+    .from('perfiles_admin').select('user_id, usuario');
+  if (perfilesError) throw new Error(perfilesError.message);
 
-  if (emailOriginal) {
-    const existente = usersList.users.find((u) => u.email === emailOriginal);
+  if (correoOriginal) {
+    const existente = usersList.users.find((u) => u.email === correoOriginal);
     if (!existente) throw new Error('Usuario no encontrado');
 
-    const duplicado = usersList.users.find((u) => u.email === email && u.id !== existente.id);
-    if (duplicado) throw new Error('Ya existe un usuario con ese correo');
+    const duplicadoCorreo = usersList.users.find((u) => u.email === correo && u.id !== existente.id);
+    if (duplicadoCorreo) throw new Error('Ya existe una cuenta con ese correo');
+    const duplicadoUsuario = perfilesExistentes.find((p) => p.usuario === usuario && p.user_id !== existente.id);
+    if (duplicadoUsuario) throw new Error('Ya existe una cuenta con ese usuario');
 
     const updates: Record<string, unknown> = {};
-    if (email !== emailOriginal) updates.email = email;
+    if (correo !== correoOriginal) updates.email = correo;
     if (body.password) updates.password = body.password;
     if (Object.keys(updates).length > 0) {
       const { error } = await supabaseAdmin().auth.admin.updateUserById(existente.id, updates);
       if (error) throw new Error(error.message);
     }
     const { error: perfilError } = await supabaseAdmin()
-      .from('perfiles_admin').update({ nombre: body.nombre }).eq('user_id', existente.id);
+      .from('perfiles_admin').update({ usuario }).eq('user_id', existente.id);
     if (perfilError) throw new Error(perfilError.message);
     return { actualizado: true };
   }
 
-  const duplicado = usersList.users.find((u) => u.email === email);
-  if (duplicado) throw new Error('Ya existe un usuario con ese correo');
+  const duplicadoCorreo = usersList.users.find((u) => u.email === correo);
+  if (duplicadoCorreo) throw new Error('Ya existe una cuenta con ese correo');
+  const duplicadoUsuario = perfilesExistentes.find((p) => p.usuario === usuario);
+  if (duplicadoUsuario) throw new Error('Ya existe una cuenta con ese usuario');
   if (!body.password) throw new Error('La contraseña es obligatoria');
 
   const { data: creado, error: createError } = await supabaseAdmin().auth.admin.createUser({
-    email, password: body.password as string, email_confirm: true,
+    email: correo, password: body.password as string, email_confirm: true,
   });
   if (createError) throw new Error(createError.message);
   const { error: perfilError } = await supabaseAdmin()
-    .from('perfiles_admin').insert({ user_id: creado.user!.id, nombre: body.nombre, rol: 'administrador' });
+    .from('perfiles_admin').insert({ user_id: creado.user!.id, usuario, rol: 'administrador' });
   if (perfilError) throw new Error(perfilError.message);
   return { creado: true };
 }
 
-async function usuarioEliminar(username: string) {
-  const email = String(username ?? '').trim();
+async function usuarioEliminar(correoIn: string) {
+  const email = String(correoIn ?? '').trim();
   const { data: usersList, error: usersError } = await supabaseAdmin().auth.admin.listUsers();
   if (usersError) throw new Error(usersError.message);
   const existente = usersList.users.find((u) => u.email === email);
@@ -705,11 +736,13 @@ Deno.serve(async (req) => {
         data = await obtenerConfigPublica();
         break;
       case 'perfil': {
-        // Con Supabase Auth, el login ya no devuelve "nombre" (eso vivía
-        // en la tabla USUARIOS). El frontend llama a esto justo después
-        // de iniciar sesión para mostrar el nombre del administrador.
         const sesion = await requireAdmin(req);
-        data = { nombre: sesion.nombre, rol: sesion.rol, email: sesion.email };
+        data = { usuario: sesion.usuario, rol: sesion.rol, email: sesion.email };
+        break;
+      }
+      case 'loginEmail': {
+        const email = await emailPorUsuario(String(body.usuario ?? ''));
+        data = { email: email || null };
         break;
       }
       case 'registrarIngreso':
@@ -770,13 +803,13 @@ Deno.serve(async (req) => {
         const sesion = await requireAdmin(req);
         data = await usuarioGuardar(body);
         // Nunca se guarda la contraseña en el detalle de auditoría.
-        await registrarAuditoria(sesion, 'usuarioGuardar', { username: body.username, nombre: body.nombre });
+        await registrarAuditoria(sesion, 'usuarioGuardar', { correo: body.correo, usuario: body.usuario });
         break;
       }
       case 'usuarioEliminar': {
         const sesion = await requireAdmin(req);
-        data = await usuarioEliminar(String(body.username ?? ''));
-        await registrarAuditoria(sesion, 'usuarioEliminar', { username: body.username });
+        data = await usuarioEliminar(String(body.correo ?? ''));
+        await registrarAuditoria(sesion, 'usuarioEliminar', { correo: body.correo });
         break;
       }
       case 'auditoria':

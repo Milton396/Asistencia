@@ -94,9 +94,13 @@ insert into config (id) values (true);
 -- Nota: esto implica que cada administrador necesita un correo y se le
 -- debe resetear/asignar contraseña una vez migrado (no se puede portar
 -- el hash actual directo a Supabase Auth).
+-- "usuario" es el identificador corto de login (ver index.ts, acción
+-- "loginEmail", que lo resuelve a un correo antes de signInWithPassword).
+-- El correo real de la cuenta de Supabase Auth se usa solo para
+-- recuperar la contraseña, nunca para iniciar sesión.
 create table perfiles_admin (
   user_id     uuid primary key references auth.users(id) on delete cascade,
-  nombre      text not null,
+  usuario     text not null unique,
   rol         text not null default 'administrador'
 );
 

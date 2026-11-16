@@ -6,7 +6,7 @@ const Admin = (() => {
   let usuarios = [];
   let auditoria = [];
   let editandoCodigo = null;
-  let editandoUsername = null;
+  let editandoCorreo = null;
   let ultimoInforme = null;
 
   function init() {
@@ -391,11 +391,11 @@ const Admin = (() => {
     const tbody = el('tabla-usuarios').querySelector('tbody');
     tbody.innerHTML = usuarios.map((u) => `
       <tr>
-        <td>${Utils.escapeHtml(u.username)}</td>
-        <td>${Utils.escapeHtml(u.nombre)}</td>
+        <td>${Utils.escapeHtml(u.usuario)}</td>
+        <td>${Utils.escapeHtml(u.correo)}</td>
         <td>
-          <button class="btn-mini" data-accion="editar" data-username="${Utils.escapeHtml(u.username)}">Editar</button>
-          <button class="btn-mini btn-danger" data-accion="eliminar" data-username="${Utils.escapeHtml(u.username)}">Eliminar</button>
+          <button class="btn-mini" data-accion="editar" data-correo="${Utils.escapeHtml(u.correo)}">Editar</button>
+          <button class="btn-mini btn-danger" data-accion="eliminar" data-correo="${Utils.escapeHtml(u.correo)}">Eliminar</button>
         </td>
       </tr>`).join('');
   }
@@ -403,20 +403,20 @@ const Admin = (() => {
   function onClickTablaUsuarios(e) {
     const btn = e.target.closest('button');
     if (!btn) return;
-    const username = btn.dataset.username;
+    const correo = btn.dataset.correo;
     if (btn.dataset.accion === 'editar') {
-      const u = usuarios.find((x) => x.username === username);
+      const u = usuarios.find((x) => x.correo === correo);
       abrirModalUsuario(u);
     } else if (btn.dataset.accion === 'eliminar') {
-      eliminarUsuario(username);
+      eliminarUsuario(correo);
     }
   }
 
   function abrirModalUsuario(usuario) {
-    editandoUsername = usuario ? usuario.username : null;
+    editandoCorreo = usuario ? usuario.correo : null;
     el('modal-usuario-titulo').textContent = usuario ? 'Editar usuario' : 'Nuevo usuario';
-    el('input-usuario-username').value = usuario ? usuario.username : '';
-    el('input-usuario-nombre').value = usuario ? usuario.nombre : '';
+    el('input-usuario-correo').value = usuario ? usuario.correo : '';
+    el('input-usuario-usuario').value = usuario ? usuario.usuario : '';
     el('input-usuario-password').value = '';
     el('input-usuario-password').placeholder = usuario ? 'Dejar en blanco para no cambiarla' : 'Contraseña';
     el('modal-usuario').classList.remove('hidden');
@@ -425,16 +425,16 @@ const Admin = (() => {
   async function guardarUsuario() {
     const body = {
       token: Auth.token(),
-      username: el('input-usuario-username').value.trim(),
-      nombre: el('input-usuario-nombre').value.trim(),
+      correo: el('input-usuario-correo').value.trim(),
+      usuario: el('input-usuario-usuario').value.trim(),
       password: el('input-usuario-password').value
     };
-    if (editandoUsername) body.usernameOriginal = editandoUsername;
-    if (!body.username || !body.nombre) {
-      Utils.toast('Usuario y nombre son obligatorios', 'error');
+    if (editandoCorreo) body.correoOriginal = editandoCorreo;
+    if (!body.correo || !body.usuario) {
+      Utils.toast('Correo y usuario son obligatorios', 'error');
       return;
     }
-    if (!editandoUsername && !body.password) {
+    if (!editandoCorreo && !body.password) {
       Utils.toast('La contraseña es obligatoria para un usuario nuevo', 'error');
       return;
     }
@@ -448,10 +448,10 @@ const Admin = (() => {
     }
   }
 
-  async function eliminarUsuario(username) {
-    if (!confirm('¿Eliminar al usuario ' + username + '?')) return;
+  async function eliminarUsuario(correo) {
+    if (!confirm('¿Eliminar al usuario ' + correo + '?')) return;
     try {
-      await Api.post('usuarioEliminar', { token: Auth.token(), username });
+      await Api.post('usuarioEliminar', { token: Auth.token(), correo });
       Utils.toast('Usuario eliminado', 'ok');
       cargarUsuarios();
     } catch (err) {
