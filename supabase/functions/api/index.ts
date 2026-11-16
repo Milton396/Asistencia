@@ -62,10 +62,16 @@ async function requireAdmin(req: Request) {
 // ==================== ACCIONES PÚBLICAS (sin login) ====================
 // Equivalentes a listarEmpleados()/obtenerConfigPublica() en Code.gs.
 
-async function listarEmpleados() {
+// incluirCorreo solo se pide true desde la acción admin "empleadosAdmin"
+// (CRUD de Administración → Empleados, que sí necesita editar el correo).
+// La acción pública "empleados" (la usa el kiosco para buscar por código,
+// sin login) nunca debe exponer el correo de los empleados: no se usa en
+// esa pantalla y viajaba al navegador de cualquiera sin motivo.
+async function listarEmpleados(incluirCorreo = false) {
+  const columnas = incluirCorreo ? 'codigo, nombre, cargo, turno, correo' : 'codigo, nombre, cargo, turno';
   const { data, error } = await supabaseAdmin()
     .from('empleados')
-    .select('codigo, nombre, cargo, turno, correo')
+    .select(columnas)
     .order('nombre');
   if (error) throw new Error(error.message);
   return data.map((e) => ({
@@ -73,7 +79,7 @@ async function listarEmpleados() {
     nombre: e.nombre,
     cargo: e.cargo,
     turno: e.turno,
-    correo: e.correo || '',
+    ...(incluirCorreo ? { correo: e.correo || '' } : {}),
   }));
 }
 
@@ -690,6 +696,10 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'empleados':
         data = await listarEmpleados();
+        break;
+      case 'empleadosAdmin':
+        await requireAdmin(req);
+        data = await listarEmpleados(true);
         break;
       case 'config':
         data = await obtenerConfigPublica();

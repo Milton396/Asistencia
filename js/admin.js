@@ -72,7 +72,7 @@ const Admin = (() => {
 
   async function cargarEmpleados() {
     try {
-      empleados = await Api.get('empleados', { token: Auth.token() });
+      empleados = await Api.get('empleadosAdmin', { token: Auth.token() });
       renderEmpleados();
       poblarSelectTurnos();
     } catch (err) {

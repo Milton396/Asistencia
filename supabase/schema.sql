@@ -158,6 +158,12 @@ alter table perfiles_admin enable row level security;
 create policy "lectura publica empleados" on empleados
   for select using (true);
 
+-- RLS controla filas, no columnas: sin esto, "correo"/"proceso"/
+-- "created_at" quedarían legibles por cualquiera vía REST directo
+-- (/rest/v1/empleados?select=*), aunque la Edge Function nunca los
+-- devuelva en la acción pública "empleados" (ver listarEmpleados).
+revoke select (correo, proceso, created_at) on empleados from anon, authenticated;
+
 create policy "lectura publica config" on config
   for select using (true);
 
