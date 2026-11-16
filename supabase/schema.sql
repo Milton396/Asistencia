@@ -162,7 +162,10 @@ create policy "lectura publica empleados" on empleados
 -- "created_at" quedarían legibles por cualquiera vía REST directo
 -- (/rest/v1/empleados?select=*), aunque la Edge Function nunca los
 -- devuelva en la acción pública "empleados" (ver listarEmpleados).
-revoke select (correo, proceso, created_at) on empleados from anon, authenticated;
+-- El revoke por columna no funciona sobre un grant de tabla completa:
+-- se revoca todo y se vuelve a otorgar solo lo público.
+revoke select on empleados from anon, authenticated;
+grant select (codigo, nombre, cargo, turno) on empleados to anon, authenticated;
 
 create policy "lectura publica config" on config
   for select using (true);
